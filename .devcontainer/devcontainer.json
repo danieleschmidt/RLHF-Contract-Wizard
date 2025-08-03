@@ -1,71 +1,117 @@
 {
   "name": "RLHF-Contract-Wizard Development",
-  "image": "mcr.microsoft.com/devcontainers/python:3.11",
-  
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
   "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    },
     "ghcr.io/devcontainers/features/node:1": {
       "version": "18"
     },
     "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
   },
-  
   "customizations": {
     "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.flake8",
+        "ms-python.black-formatter",
+        "ms-python.pylint",
+        "ms-toolsai.jupyter",
+        "charliermarsh.ruff",
+        "ms-vscode.test-adapter-converter",
+        "ms-python.pytest",
+        "redhat.vscode-yaml",
+        "ms-vscode.vscode-json",
+        "ms-vscode.makefile-tools",
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode",
+        "davidanson.vscode-markdownlint",
+        "yzhang.markdown-all-in-one",
+        "ms-vscode.hexeditor",
+        "github.copilot",
+        "github.copilot-chat",
+        "ms-vsliveshare.vsliveshare"
+      ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestArgs": [
+          "tests"
+        ],
         "python.linting.enabled": true,
         "python.linting.pylintEnabled": true,
         "python.linting.flake8Enabled": true,
         "python.formatting.provider": "black",
-        "python.formatting.blackArgs": ["--line-length=88"],
-        "python.sortImports.args": ["--profile", "black"],
+        "python.formatting.blackArgs": [
+          "--line-length",
+          "88"
+        ],
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
           "source.organizeImports": true
         },
         "files.exclude": {
           "**/__pycache__": true,
+          "**/*.pyc": true,
           "**/.pytest_cache": true,
-          "**/node_modules": true
-        }
-      },
-      "extensions": [
-        "ms-python.python",
-        "ms-python.flake8",
-        "ms-python.black-formatter",
-        "ms-python.isort",
-        "ms-toolsai.jupyter",
-        "charliermarsh.ruff",
-        "ms-vscode.test-adapter-converter",
-        "hbenl.vscode-test-explorer",
-        "github.copilot",
-        "github.vscode-pull-request-github",
-        "esbenp.prettier-vscode",
-        "ms-vscode.vscode-json",
-        "redhat.vscode-yaml",
-        "ms-vscode.makefile-tools"
-      ]
+          "**/node_modules": true,
+          "**/.git": false
+        },
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "git.enableSmartCommit": true,
+        "git.confirmSync": false,
+        "editor.rulers": [88],
+        "markdown.preview.breaks": true,
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true
+      }
     }
   },
-  
   "forwardPorts": [
-    3000,
     8000,
-    8545,
-    5432
+    8080,
+    3000,
+    5432,
+    6379
   ],
-  
-  "postCreateCommand": "bash .devcontainer/setup.sh",
-  
+  "portsAttributes": {
+    "8000": {
+      "label": "API Server",
+      "onAutoForward": "notify"
+    },
+    "8080": {
+      "label": "Development Server",
+      "onAutoForward": "openPreview"
+    },
+    "3000": {
+      "label": "Frontend",
+      "onAutoForward": "openBrowser"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    },
+    "6379": {
+      "label": "Redis",
+      "onAutoForward": "silent"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "bash .devcontainer/post-start.sh",
   "remoteUser": "vscode",
-  
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
   ],
-  
-  "runArgs": [
-    "--env-file",
-    ".env"
-  ]
+  "containerEnv": {
+    "PYTHONPATH": "/workspaces/RLHF-Contract-Wizard/src",
+    "DEVELOPMENT": "true",
+    "LOG_LEVEL": "DEBUG"
+  }
 }

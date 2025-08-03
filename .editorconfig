@@ -1,5 +1,3 @@
-# EditorConfig configuration for RLHF-Contract-Wizard
-
 root = true
 
 [*]
@@ -7,36 +5,24 @@ charset = utf-8
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
-
-[*.{py,pyx,pyi}]
 indent_style = space
+indent_size = 2
+
+[*.py]
 indent_size = 4
 max_line_length = 88
 
-[*.{js,jsx,ts,tsx,json,yaml,yml}]
-indent_style = space
+[*.{js,ts,jsx,tsx}]
 indent_size = 2
 
-[*.{html,css,scss}]
-indent_style = space
+[*.{json,yml,yaml}]
 indent_size = 2
 
-[*.{md,rst}]
-indent_style = space
-indent_size = 2
+[*.md]
 trim_trailing_whitespace = false
-
-[*.{sol,vy}]
-indent_style = space
-indent_size = 4
 
 [Makefile]
 indent_style = tab
 
-[*.{toml,cfg,ini}]
-indent_style = space
-indent_size = 2
-
-[*.sh]
-indent_style = space
-indent_size = 2
+[*.sol]
+indent_size = 4
