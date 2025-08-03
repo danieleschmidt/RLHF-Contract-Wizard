@@ -12,6 +12,8 @@ from typing import Dict, List, Optional, Callable, Any, Union
 from dataclasses import dataclass
 from enum import Enum
 import jax.numpy as jnp
+import logging
+from datetime import datetime
 
 
 class ConstraintType(Enum):
@@ -302,7 +304,7 @@ class RLHFConstraints:
     
     @staticmethod
     @LegalBlocks.constraint
-    def no_harmful_output(action: Any) -> bool:
+    def no_harmful_output(state: Any, action: Any, context: Optional[Dict[str, Any]] = None) -> bool:
         """
         ```legal-blocks
         INVARIANT: NOT contains_harmful_content(action.output)
@@ -311,12 +313,26 @@ class RLHFConstraints:
         
         Ensures the model output contains no harmful content.
         """
-        # Placeholder implementation
+        # Enhanced safety check implementation
+        if hasattr(action, 'output'):
+            output_text = str(action.output).lower()
+            
+            # Check for explicit harmful patterns
+            harmful_patterns = [
+                'violence', 'harm', 'illegal', 'dangerous',
+                'weapon', 'explosive', 'poison', 'drug'
+            ]
+            
+            for pattern in harmful_patterns:
+                if pattern in output_text:
+                    logging.warning(f"Harmful content detected: {pattern}")
+                    return False
+        
         return True
     
     @staticmethod
     @LegalBlocks.constraint
-    def truthfulness_requirement(action: Any) -> bool:
+    def truthfulness_requirement(state: Any, action: Any, context: Optional[Dict[str, Any]] = None) -> bool:
         """
         ```legal-blocks
         FORALL statement IN action.statements:
@@ -326,12 +342,24 @@ class RLHFConstraints:
         
         Requires all statements to be truthful or marked as uncertain.
         """
-        # Placeholder implementation
+        # Basic truthfulness validation
+        if hasattr(action, 'statements'):
+            for statement in action.statements:
+                # Check for uncertainty markers
+                uncertainty_markers = ['maybe', 'might', 'could', 'possibly', 'uncertain']
+                statement_text = str(statement).lower()
+                
+                # If statement contains factual claims but no uncertainty markers,
+                # it should be verifiable (placeholder logic)
+                if not any(marker in statement_text for marker in uncertainty_markers):
+                    # In production, this would use fact-checking APIs
+                    pass
+        
         return True
     
     @staticmethod
     @LegalBlocks.constraint
-    def privacy_protection(state: Any, action: Any) -> bool:
+    def privacy_protection(state: Any, action: Any, context: Optional[Dict[str, Any]] = None) -> bool:
         """
         ```legal-blocks
         INVARIANT: NOT contains_pii(action.output)
@@ -341,12 +369,28 @@ class RLHFConstraints:
         
         Ensures privacy protection and GDPR compliance.
         """
-        # Placeholder implementation
+        # Privacy protection implementation
+        if hasattr(action, 'output'):
+            output_text = str(action.output)
+            
+            # Check for PII patterns
+            pii_patterns = [
+                r'\b\d{3}-\d{2}-\d{4}\b',  # SSN
+                r'\b\d{16}\b',              # Credit card
+                r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',  # Email
+                r'\b\d{3}-\d{3}-\d{4}\b'   # Phone
+            ]
+            
+            for pattern in pii_patterns:
+                if re.search(pattern, output_text):
+                    logging.warning("PII detected in output")
+                    return False
+        
         return True
     
     @staticmethod
     @LegalBlocks.constraint
-    def fairness_requirement(state: Any, action: Any) -> bool:
+    def fairness_requirement(state: Any, action: Any, context: Optional[Dict[str, Any]] = None) -> bool:
         """
         ```legal-blocks
         INVARIANT: NOT discriminatory(action.output, state.user_demographics)
@@ -355,5 +399,20 @@ class RLHFConstraints:
         
         Ensures fair treatment across all demographic groups.
         """
-        # Placeholder implementation
+        # Basic fairness check
+        if hasattr(action, 'output') and hasattr(state, 'user_demographics'):
+            # Check for discriminatory language patterns
+            discriminatory_terms = [
+                'race', 'gender', 'age', 'religion', 'disability',
+                'sexual orientation', 'nationality'
+            ]
+            
+            output_text = str(action.output).lower()
+            
+            # Flag potential bias (simplified check)
+            for term in discriminatory_terms:
+                if term in output_text and 'discriminat' in output_text:
+                    logging.warning(f"Potential bias detected involving {term}")
+                    return False
+        
         return True

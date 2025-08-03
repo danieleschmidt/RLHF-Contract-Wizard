@@ -14,6 +14,8 @@ from enum import Enum
 import jax
 import jax.numpy as jnp
 from jax import jit, vmap
+import logging
+from datetime import datetime
 
 
 class AggregationStrategy(Enum):
@@ -150,13 +152,14 @@ class RewardContract:
         return decorator
     
     @jit
-    def compute_reward(self, state: jnp.ndarray, action: jnp.ndarray) -> float:
+    def compute_reward(self, state: jnp.ndarray, action: jnp.ndarray, context: Optional[Dict[str, Any]] = None) -> float:
         """
         Compute aggregated reward with constraint enforcement.
         
         Args:
             state: Current environment state
             action: Proposed action
+            context: Optional context information for constraint evaluation
             
         Returns:
             Final reward value considering all stakeholders and constraints
@@ -164,17 +167,18 @@ class RewardContract:
         if self._compiled_reward_fn is None:
             self._compile_reward_function()
         
-        return self._compiled_reward_fn(state, action)
+        return self._compiled_reward_fn(state, action, context or {})
     
-    def check_violations(self, state: jnp.ndarray, action: jnp.ndarray) -> Dict[str, bool]:
+    def check_violations(self, state: jnp.ndarray, action: jnp.ndarray, context: Optional[Dict[str, Any]] = None) -> Dict[str, bool]:
         """Check for constraint violations."""
         violations = {}
         for name, constraint in self.constraints.items():
             if constraint.enabled:
                 try:
-                    violations[name] = not constraint.constraint_fn(state, action)
+                    violations[name] = not constraint.constraint_fn(state, action, context or {})
                 except Exception as e:
                     # Log error and treat as violation
+                    logging.warning(f"Constraint {name} evaluation failed: {e}")
                     violations[name] = True
         return violations
     
@@ -192,17 +196,17 @@ class RewardContract:
         if not self.reward_functions:
             raise ValueError("No reward functions defined")
         
-        def compiled_fn(state: jnp.ndarray, action: jnp.ndarray) -> float:
+        def compiled_fn(state: jnp.ndarray, action: jnp.ndarray, context: Dict[str, Any]) -> float:
             # Compute individual stakeholder rewards
             stakeholder_rewards = {}
             
             for stakeholder_name, stakeholder in self.stakeholders.items():
                 if stakeholder_name in self.reward_functions:
                     reward_fn = self.reward_functions[stakeholder_name]
-                    stakeholder_rewards[stakeholder_name] = reward_fn(state, action)
+                    stakeholder_rewards[stakeholder_name] = reward_fn(state, action, context)
                 elif "default" in self.reward_functions:
                     reward_fn = self.reward_functions["default"]
-                    stakeholder_rewards[stakeholder_name] = reward_fn(state, action)
+                    stakeholder_rewards[stakeholder_name] = reward_fn(state, action, context)
                 else:
                     stakeholder_rewards[stakeholder_name] = 0.0
             
@@ -226,7 +230,7 @@ class RewardContract:
             for name, constraint in self.constraints.items():
                 if constraint.enabled:
                     try:
-                        violations[name] = not constraint.constraint_fn(state, action)
+                        violations[name] = not constraint.constraint_fn(state, action, context)
                     except:
                         violations[name] = True
             
@@ -240,6 +244,7 @@ class RewardContract:
             return aggregated_reward + penalty
         
         self._compiled_reward_fn = jit(compiled_fn)
+        logging.info(f"Compiled reward function for contract {self.metadata.name}")
     
     def _normalize_stakeholder_weights(self):
         """Normalize stakeholder weights to sum to 1.0."""

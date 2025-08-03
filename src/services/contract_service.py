@@ -10,6 +10,9 @@ from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 import hashlib
 import time
+import logging
+from datetime import datetime
+import asyncio
 
 from ..models.reward_contract import RewardContract, Stakeholder
 from ..models.legal_blocks import LegalBlocks
@@ -127,7 +130,8 @@ class ContractService:
                 import jax.numpy as jnp
                 dummy_state = jnp.zeros(10)
                 dummy_action = jnp.zeros(5)
-                constraint.constraint_fn(dummy_state, dummy_action)
+                dummy_context = {}
+                constraint.constraint_fn(dummy_state, dummy_action, dummy_context)
             except Exception as e:
                 validation_results['errors'].append(
                     f"Constraint '{name}' failed validation: {str(e)}"
@@ -217,6 +221,7 @@ class ContractService:
             })
             raise
         
+        logging.info(f"Contract deployment {'successful' if deployment_result['status'] == 'deployed' else 'failed'}: {deployment_result['contract_id']}")
         return deployment_result
     
     def get_contract(self, contract_id: str) -> Optional[RewardContract]:
@@ -279,6 +284,7 @@ class ContractService:
         contract.metadata.version = new_version
         contract.metadata.updated_at = time.time()
         
+        logging.info(f"Contract updated: {contract_id} -> version {new_version}")
         return contract
     
     def save_contract(

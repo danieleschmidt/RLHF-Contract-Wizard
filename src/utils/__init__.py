@@ -46,6 +46,19 @@ from .helpers import (
     get_system_info
 )
 
+from .contract_utils import (
+    compute_constraint_complexity,
+    estimate_computational_overhead,
+    serialize_contract_metadata,
+    validate_contract_structure,
+    compute_contract_fingerprint,
+    format_contract_summary,
+    benchmark_contract_performance,
+    migrate_contract_version,
+    ContractError,
+    SerializationError
+)
+
 __all__ = [
     # Validators
     'ValidationError',
@@ -84,5 +97,17 @@ __all__ = [
     'clamp',
     'normalize_weights',
     'create_progress_bar',
-    'get_system_info'
+    'get_system_info',
+    
+    # Contract Utils
+    'compute_constraint_complexity',
+    'estimate_computational_overhead',
+    'serialize_contract_metadata',
+    'validate_contract_structure',
+    'compute_contract_fingerprint',
+    'format_contract_summary',
+    'benchmark_contract_performance',
+    'migrate_contract_version',
+    'ContractError',
+    'SerializationError'
 ]

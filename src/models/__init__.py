@@ -20,6 +20,14 @@ from .legal_blocks import (
     RLHFConstraints
 )
 
+from .stakeholder_preferences import (
+    StakeholderPreferences,
+    VotingStrategy,
+    ProposalStatus,
+    Vote,
+    Amendment
+)
+
 __all__ = [
     # Reward Contract
     'RewardContract',
@@ -33,5 +41,12 @@ __all__ = [
     'LegalBlock',
     'ConstraintType',
     'LegalBlocksParser',
-    'RLHFConstraints'
+    'RLHFConstraints',
+    
+    # Stakeholder Preferences
+    'StakeholderPreferences',
+    'VotingStrategy',
+    'ProposalStatus',
+    'Vote',
+    'Amendment'
 ]
