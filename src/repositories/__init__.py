@@ -2,6 +2,8 @@
 Repositories package for RLHF-Contract-Wizard.
 
 Contains data access layer implementations following the Repository pattern.
+Provides comprehensive data access for contracts, stakeholders, metrics,
+audit trails, and caching.
 """
 
 from .base_repository import BaseRepository
@@ -12,6 +14,8 @@ from .contract_repository import (
     DeploymentRepository,
     VerificationRepository
 )
+from .metrics_repository import MetricsRepository, CacheRepository
+from .audit_repository import AuditRepository, EventType
 
 __all__ = [
     'BaseRepository',
@@ -19,5 +23,9 @@ __all__ = [
     'StakeholderRepository',
     'ConstraintRepository',
     'DeploymentRepository',
-    'VerificationRepository'
+    'VerificationRepository',
+    'MetricsRepository',
+    'CacheRepository',
+    'AuditRepository',
+    'EventType'
 ]
