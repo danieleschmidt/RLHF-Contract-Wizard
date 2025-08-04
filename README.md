@@ -42,7 +42,7 @@ RLHF-Contract-Wizard provides a framework for creating legally-binding, machine-
 ### Quick Install
 
 ```bash
-git clone https://github.com/yourusername/RLHF-Contract-Wizard
+git clone https://github.com/danieleschmidt/RLHF-Contract-Wizard
 cd RLHF-Contract-Wizard
 
 # Install Python dependencies
@@ -834,9 +834,9 @@ Apache License 2.0 - see [LICENSE](LICENSE) file.
 ```bibtex
 @software{rlhf-contract-wizard,
   title={RLHF-Contract-Wizard: Machine-Readable Contracts for AI Alignment},
-  author={Your Name},
+  author={Daniel Schmidt},
   year={2025},
-  url={https://github.com/yourusername/RLHF-Contract-Wizard}
+  url={https://github.com/danieleschmidt/RLHF-Contract-Wizard}
 }
 ```
 
