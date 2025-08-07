@@ -25,6 +25,15 @@ from .services import (
     BlockchainService
 )
 
+# Quantum task planner imports
+from .quantum_planner import (
+    QuantumTaskPlanner,
+    QuantumTask,
+    TaskState,
+    ContractualTaskPlanner,
+    QuantumPlannerVisualizer
+)
+
 # Convenience functions
 def create_contract(
     name: str,
@@ -74,6 +83,13 @@ __all__ = [
     'ContractService',
     'VerificationService',
     'BlockchainService',
+    
+    # Quantum planning
+    'QuantumTaskPlanner',
+    'QuantumTask',
+    'TaskState',
+    'ContractualTaskPlanner',
+    'QuantumPlannerVisualizer',
     
     # Convenience functions
     'create_contract',

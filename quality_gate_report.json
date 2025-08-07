@@ -1,0 +1,208 @@
+{
+  "timestamp": 1754527279.2798083,
+  "overall_status": "QualityGateStatus.FAILED",
+  "overall_score": 0.8400000000000001,
+  "total_gates": 10,
+  "passed_gates": 8,
+  "failed_gates": 1,
+  "warning_gates": 1,
+  "skipped_gates": 0,
+  "execution_time": 3.867269277572632,
+  "gate_results": [
+    {
+      "gate_name": "Test Coverage Validation",
+      "status": "QualityGateStatus.PASSED",
+      "severity": "QualityGateSeverity.INFO",
+      "score": 1.0,
+      "message": "Test coverage: 90.0% (required: 85.0%)",
+      "details": {
+        "coverage_percent": 90.0,
+        "threshold": 85.0,
+        "test_output": "on\": \"_log_with_context\", \"line\": 285, \"thread_id\": 140033640681600, \"process_id\": 2731}\n{\"timestamp\": 1754527277.7718048, \"iso_timestamp\": \"2025-08-07T00:41:17.%fZ\", \"level\": \"INFO\", \"logger\": \"quantum_planner\", \"message\": \"Registered alert: high_memory_usage (severity: warning)\", \"module\": \"logging_config\", \"function\": \"_log_with_context\", \"line\": 285, \"thread_id\": 140033640681600, \"process_id\": 2731}\n{\"timestamp\": 1754527277.7718956, \"iso_timestamp\": \"2025-08-07T00:41:17.%fZ\", \"level\": \"INFO\", \"logger\": \"quantum_planner\", \"message\": \"Registered alert: high_task_failure_rate (severity: warning)\", \"module\": \"logging_config\", \"function\": \"_log_with_context\", \"line\": 285, \"thread_id\": 140033640681600, \"process_id\": 2731}\n\u2713 Multi-module integration\n\u2713 Monitoring integration\n\u2705 Integration tests PASSED\n\n==================================================\nTEST RESULTS: 10/10 tests passed\nExecution time: 1.01 seconds\nModule coverage: 90.0%\n\ud83c\udf89 ALL TESTS PASSED!\n\u2705 Target coverage achieved (85%+)\n"
+      },
+      "execution_time": 2.7247984409332275,
+      "recommendations": [
+        "Maintain current test coverage level"
+      ]
+    },
+    {
+      "gate_name": "Code Quality Analysis",
+      "status": "QualityGateStatus.WARNING",
+      "severity": "QualityGateSeverity.MEDIUM",
+      "score": 0.7999999999999999,
+      "message": "Code quality score: 0.80/1.00 (1 issues found)",
+      "details": {
+        "total_python_files": 43,
+        "total_lines": 17614,
+        "comment_ratio": 0.1104235267400931,
+        "long_functions": 89,
+        "issues": [
+          "Found 89 functions with >50 lines"
+        ]
+      },
+      "execution_time": 0.016817569732666016,
+      "recommendations": [
+        "Refactor long functions into smaller components"
+      ]
+    },
+    {
+      "gate_name": "Security Vulnerability Scan",
+      "status": "QualityGateStatus.PASSED",
+      "severity": "QualityGateSeverity.INFO",
+      "score": 0.9,
+      "message": "Security scan complete: 1 issues found (score: 0.90)",
+      "details": {
+        "vulnerabilities": [
+          "Access controls not properly implemented: cannot import name 'AccessController' from 'src.quantum_planner.security' (/root/repo/src/quantum_planner/security.py)"
+        ],
+        "critical_vulnerabilities": [],
+        "security_score": 0.9
+      },
+      "execution_time": 0.011570453643798828,
+      "recommendations": [
+        "Address all critical and high-severity vulnerabilities",
+        "Implement additional input validation",
+        "Review access control mechanisms"
+      ]
+    },
+    {
+      "gate_name": "Performance Benchmarking",
+      "status": "QualityGateStatus.PASSED",
+      "severity": "QualityGateSeverity.INFO",
+      "score": 0.8,
+      "message": "Performance score: 0.80/1.00 (planning: 0.1ms)",
+      "details": {
+        "task_creation_time_ms": 110.66770553588867,
+        "planning_time_ms": 0.0934600830078125,
+        "performance_score": 0.8,
+        "max_response_time_threshold": 1000
+      },
+      "execution_time": 0.11084651947021484,
+      "recommendations": [
+        "Performance is acceptable"
+      ]
+    },
+    {
+      "gate_name": "Contract Compliance Validation",
+      "status": "QualityGateStatus.FAILED",
+      "severity": "QualityGateSeverity.CRITICAL",
+      "score": 0.0,
+      "message": "Contract compliance validation failed: 'dict' object has no attribute 'weight'",
+      "details": {
+        "error": "'dict' object has no attribute 'weight'"
+      },
+      "execution_time": 6.651878356933594e-05,
+      "recommendations": [
+        "Fix contract compliance validation process"
+      ]
+    },
+    {
+      "gate_name": "Dependency Security Scan",
+      "status": "QualityGateStatus.PASSED",
+      "severity": "QualityGateSeverity.INFO",
+      "score": 1.0,
+      "message": "Dependency security: 35 dependencies scanned, 0 vulnerabilities",
+      "details": {
+        "total_dependencies": 35,
+        "vulnerable_dependencies": [],
+        "security_score": 1.0
+      },
+      "execution_time": 0.00014400482177734375,
+      "recommendations": [
+        "Dependencies appear secure"
+      ]
+    },
+    {
+      "gate_name": "Resource Usage Validation",
+      "status": "QualityGateStatus.PASSED",
+      "severity": "QualityGateSeverity.INFO",
+      "score": 1.0,
+      "message": "Resource usage: Memory 466.0MB, CPU 0.5%",
+      "details": {
+        "memory_usage_mb": 465.9921875,
+        "cpu_usage_percent": 0.5,
+        "memory_threshold": 512,
+        "cpu_threshold": 80,
+        "issues": []
+      },
+      "execution_time": 1.0006728172302246,
+      "recommendations": [
+        "Resource usage is acceptable"
+      ]
+    },
+    {
+      "gate_name": "API Compatibility Check",
+      "status": "QualityGateStatus.PASSED",
+      "severity": "QualityGateSeverity.INFO",
+      "score": 1.0,
+      "message": "API compatibility: 1.00/1.00 (0 issues)",
+      "details": {
+        "compatibility_score": 1.0,
+        "api_issues": [],
+        "checked_interfaces": 5
+      },
+      "execution_time": 4.172325134277344e-05,
+      "recommendations": [
+        "API compatibility is maintained"
+      ]
+    },
+    {
+      "gate_name": "Documentation Completeness",
+      "status": "QualityGateStatus.PASSED",
+      "severity": "QualityGateSeverity.INFO",
+      "score": 0.9,
+      "message": "Documentation score: 0.90/1.00 (43/43 files documented)",
+      "details": {
+        "documentation_score": 0.9,
+        "documented_files": 43,
+        "total_files": 43,
+        "documentation_ratio": 1.0,
+        "issues": []
+      },
+      "execution_time": 0.0019996166229248047,
+      "recommendations": [
+        "Documentation is adequate"
+      ]
+    },
+    {
+      "gate_name": "Production Readiness",
+      "status": "QualityGateStatus.PASSED",
+      "severity": "QualityGateSeverity.INFO",
+      "score": 0.9999999999999999,
+      "message": "Production readiness: 1.00/1.00",
+      "details": {
+        "readiness_score": 0.9999999999999999,
+        "readiness_checks": [
+          "\u2713 All required modules present",
+          "\u2713 Configuration files present",
+          "\u2713 Test suite present",
+          "\u2713 Security validation passed",
+          "\u2713 Performance benchmarks acceptable"
+        ],
+        "deployment_ready": true
+      },
+      "execution_time": 8.392333984375e-05,
+      "recommendations": [
+        "System is production ready"
+      ]
+    }
+  ],
+  "critical_issues": [
+    "Contract Compliance Validation: Contract compliance validation failed: 'dict' object has no attribute 'weight'"
+  ],
+  "recommendations": [
+    "Implement additional input validation",
+    "API compatibility is maintained",
+    "Refactor long functions into smaller components",
+    "Performance is acceptable",
+    "Documentation is adequate",
+    "System is production ready",
+    "Dependencies appear secure",
+    "Maintain current test coverage level",
+    "Fix contract compliance validation process",
+    "Address all critical and high-severity vulnerabilities",
+    "Resource usage is acceptable",
+    "Review access control mechanisms"
+  ],
+  "deployment_ready": false
+}
