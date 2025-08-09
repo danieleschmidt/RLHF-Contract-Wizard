@@ -175,7 +175,6 @@ class QuantumTaskPlanner:
             key = tuple(sorted([task_id1, task_id2]))
             self.entanglement_matrix[key] = complex(strength, 0.0)
     
-    @jit
     def _compute_interference_pattern(
         self,
         amplitudes: jnp.ndarray,

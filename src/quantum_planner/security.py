@@ -707,3 +707,103 @@ class SecurityValidator:
             'recommendations': recommendations,
             'report_generated_at': current_time
         }
+
+
+class AccessController:
+    """
+    Role-based access control system for quantum task planning.
+    
+    Manages user roles, permissions, and access policies to ensure
+    secure operation of the quantum planning system.
+    """
+    
+    def __init__(self):
+        self.roles: Dict[str, Set[str]] = {
+            'public': {'task_view'},
+            'user': {'task_view', 'task_create', 'task_modify'},
+            'operator': {'task_view', 'task_create', 'task_modify', 'task_execute', 'resource_access'},
+            'admin': {'*'},  # All permissions
+            'security': {'security_operations', 'audit_view', 'user_management'},
+        }
+        
+        self.user_roles: Dict[str, Set[str]] = {}
+        self.permission_cache: Dict[str, Set[str]] = {}
+        self.access_log: List[Dict[str, Any]] = []
+        
+    def assign_role(self, user_id: str, role: str) -> bool:
+        """Assign a role to a user."""
+        if role not in self.roles:
+            return False
+            
+        if user_id not in self.user_roles:
+            self.user_roles[user_id] = set()
+            
+        self.user_roles[user_id].add(role)
+        self._invalidate_permission_cache(user_id)
+        
+        self.access_log.append({
+            'timestamp': time.time(),
+            'action': 'role_assigned',
+            'user_id': user_id,
+            'role': role
+        })
+        
+        return True
+    
+    def revoke_role(self, user_id: str, role: str) -> bool:
+        """Revoke a role from a user."""
+        if user_id not in self.user_roles or role not in self.user_roles[user_id]:
+            return False
+            
+        self.user_roles[user_id].remove(role)
+        self._invalidate_permission_cache(user_id)
+        
+        self.access_log.append({
+            'timestamp': time.time(),
+            'action': 'role_revoked',
+            'user_id': user_id,
+            'role': role
+        })
+        
+        return True
+    
+    def has_permission(self, user_id: str, permission: str) -> bool:
+        """Check if user has specific permission."""
+        user_permissions = self._get_user_permissions(user_id)
+        return '*' in user_permissions or permission in user_permissions
+    
+    def check_access(self, user_id: str, resource: str, action: str) -> bool:
+        """Check if user can perform action on resource."""
+        required_permission = f"{resource}_{action}"
+        has_access = self.has_permission(user_id, required_permission)
+        
+        self.access_log.append({
+            'timestamp': time.time(),
+            'action': 'access_check',
+            'user_id': user_id,
+            'resource': resource,
+            'requested_action': action,
+            'granted': has_access
+        })
+        
+        return has_access
+    
+    def _get_user_permissions(self, user_id: str) -> Set[str]:
+        """Get all permissions for a user (with caching)."""
+        if user_id in self.permission_cache:
+            return self.permission_cache[user_id]
+            
+        permissions = set()
+        user_roles = self.user_roles.get(user_id, set())
+        
+        for role in user_roles:
+            role_permissions = self.roles.get(role, set())
+            permissions.update(role_permissions)
+        
+        self.permission_cache[user_id] = permissions
+        return permissions
+    
+    def _invalidate_permission_cache(self, user_id: str):
+        """Invalidate permission cache for user."""
+        if user_id in self.permission_cache:
+            del self.permission_cache[user_id]
