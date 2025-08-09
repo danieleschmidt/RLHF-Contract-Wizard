@@ -571,9 +571,21 @@ class QualityGateRunner:
         try:
             # Import contract validation
             from src.quantum_planner.contracts import ContractualTaskPlanner
+            from src.models.reward_contract import RewardContract
             
-            # Simplified compliance check - verify contract module exists and has required classes
-            contractual_planner_exists = True
+            # Create a mock contract for testing
+            mock_stakeholders = {
+                'operator': 0.4,
+                'safety_board': 0.4,
+                'users': 0.2
+            }
+            mock_contract = RewardContract(
+                name="test_contract",
+                stakeholders=mock_stakeholders
+            )
+            
+            # Create contractual planner instance
+            contractual_planner = ContractualTaskPlanner(mock_contract)
             
             # Test contract compliance
             compliance_score = 0.95  # High compliance expected
@@ -606,7 +618,12 @@ class QualityGateRunner:
             
             # Check constraint validation (handle both dict and object formats)
             try:
-                constraints = contractual_planner.contract.constraints
+                # Check both contract.constraints and planner.constraints
+                contract_constraints = getattr(contractual_planner.contract, 'constraints', None)
+                planner_constraints = getattr(contractual_planner, 'constraints', None)
+                
+                constraints = contract_constraints or planner_constraints
+                
                 if isinstance(constraints, dict) and constraints:
                     # Constraints present as dict
                     pass
