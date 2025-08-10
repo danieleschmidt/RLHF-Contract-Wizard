@@ -1,0 +1,437 @@
+# Production Configuration for RLHF-Contract-Wizard
+# Comprehensive production deployment settings with security, monitoring, and scaling
+
+# ========================================================================
+# Application Configuration
+# ========================================================================
+app:
+  name: "RLHF-Contract-Wizard"
+  version: "1.0.0"
+  environment: "production"
+  debug: false
+  log_level: "INFO"
+  timezone: "UTC"
+
+# ========================================================================
+# API Server Configuration
+# ========================================================================
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  worker_class: "uvicorn.workers.UvicornWorker"
+  worker_connections: 1000
+  keepalive: 2
+  max_requests: 1000
+  max_requests_jitter: 50
+  preload_app: true
+  timeout: 30
+  graceful_timeout: 30
+  
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    per_minute: 100
+    per_hour: 5000
+    per_day: 50000
+  
+  # CORS settings
+  cors:
+    allow_origins: ["https://*.rlhf-contracts.org", "https://*.terragonlabs.com"]
+    allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers: ["*"]
+    allow_credentials: true
+
+# ========================================================================
+# Database Configuration
+# ========================================================================
+database:
+  # Primary database
+  primary:
+    engine: "postgresql"
+    host: "${DB_HOST:localhost}"
+    port: 5432
+    name: "${DB_NAME:rlhf_contracts}"
+    username: "${DB_USER:rlhf_user}"
+    password: "${DB_PASSWORD}"
+    pool_size: 20
+    max_overflow: 30
+    pool_timeout: 30
+    pool_recycle: 3600
+    ssl_mode: "require"
+  
+  # Read replica for scaling
+  replica:
+    enabled: true
+    host: "${DB_REPLICA_HOST:localhost}"
+    port: 5432
+    name: "${DB_NAME:rlhf_contracts}"
+    username: "${DB_REPLICA_USER:rlhf_reader}"
+    password: "${DB_REPLICA_PASSWORD}"
+    pool_size: 10
+    max_overflow: 20
+
+# ========================================================================
+# Redis Cache Configuration
+# ========================================================================
+redis:
+  host: "${REDIS_HOST:localhost}"
+  port: 6379
+  password: "${REDIS_PASSWORD:}"
+  db: 0
+  ssl: true
+  pool_size: 20
+  max_connections: 100
+  
+  # Cache TTL settings (seconds)
+  ttl:
+    contracts: 3600        # 1 hour
+    verifications: 7200    # 2 hours
+    computations: 1800     # 30 minutes
+    user_sessions: 86400   # 24 hours
+
+# ========================================================================
+# Blockchain Configuration
+# ========================================================================
+blockchain:
+  # Ethereum mainnet
+  ethereum:
+    enabled: true
+    provider_url: "${ETH_PROVIDER_URL:https://mainnet.infura.io/v3/YOUR_KEY}"
+    contract_address: "${ETH_CONTRACT_ADDRESS}"
+    private_key: "${ETH_PRIVATE_KEY}"
+    gas_price: "fast"
+    gas_limit: 500000
+    confirmation_blocks: 3
+  
+  # Polygon for cost efficiency
+  polygon:
+    enabled: true
+    provider_url: "${POLYGON_PROVIDER_URL:https://polygon-rpc.com}"
+    contract_address: "${POLYGON_CONTRACT_ADDRESS}"
+    private_key: "${POLYGON_PRIVATE_KEY}"
+    gas_price: "standard"
+    gas_limit: 300000
+    confirmation_blocks: 5
+
+# ========================================================================
+# Security Configuration
+# ========================================================================
+security:
+  # JWT settings
+  jwt:
+    secret_key: "${JWT_SECRET_KEY}"
+    algorithm: "HS256"
+    access_token_expire_minutes: 60
+    refresh_token_expire_days: 30
+  
+  # API keys
+  api_keys:
+    enabled: true
+    header_name: "X-API-Key"
+    require_for_all_endpoints: false
+  
+  # Rate limiting
+  rate_limiting:
+    enabled: true
+    storage: "redis"
+    strategy: "sliding-window"
+  
+  # HTTPS enforcement
+  https:
+    enabled: true
+    redirect_http: true
+    hsts_max_age: 31536000
+    hsts_include_subdomains: true
+  
+  # Content Security Policy
+  csp:
+    enabled: true
+    default_src: "'self'"
+    script_src: "'self' 'unsafe-inline'"
+    style_src: "'self' 'unsafe-inline'"
+    img_src: "'self' data: https:"
+
+# ========================================================================
+# Monitoring and Observability
+# ========================================================================
+monitoring:
+  # Prometheus metrics
+  prometheus:
+    enabled: true
+    endpoint: "/metrics"
+    port: 9090
+    basic_auth:
+      username: "${PROMETHEUS_USER:metrics}"
+      password: "${PROMETHEUS_PASSWORD}"
+  
+  # Health checks
+  health:
+    enabled: true
+    endpoint: "/health"
+    checks:
+      - database
+      - redis
+      - blockchain
+      - memory_usage
+      - disk_space
+  
+  # OpenTelemetry tracing
+  tracing:
+    enabled: true
+    service_name: "rlhf-contract-wizard"
+    jaeger_endpoint: "${JAEGER_ENDPOINT:http://localhost:14268/api/traces}"
+    sample_rate: 0.1
+  
+  # Structured logging
+  logging:
+    format: "json"
+    level: "INFO"
+    output: "stdout"
+    include_trace_id: true
+    
+    # Log aggregation
+    aggregation:
+      enabled: true
+      service: "datadog"  # or "splunk", "elasticsearch"
+      api_key: "${DATADOG_API_KEY}"
+
+# ========================================================================
+# Performance Configuration
+# ========================================================================
+performance:
+  # Caching strategy
+  cache:
+    default_ttl: 3600
+    max_size: 10000
+    eviction_policy: "lru"
+    compression: true
+  
+  # Batch processing
+  batch:
+    default_size: 32
+    max_size: 128
+    timeout: 30
+    parallel_workers: 4
+  
+  # Resource pools
+  pools:
+    reward_models:
+      initial_size: 3
+      max_size: 10
+      idle_timeout: 300
+    
+    verification_services:
+      initial_size: 2
+      max_size: 8
+      idle_timeout: 600
+  
+  # Auto-scaling
+  auto_scaling:
+    enabled: true
+    cpu_threshold: 80
+    memory_threshold: 85
+    response_time_threshold: 1000  # milliseconds
+    scale_up_cooldown: 300         # seconds
+    scale_down_cooldown: 600       # seconds
+
+# ========================================================================
+# Compliance Configuration
+# ========================================================================
+compliance:
+  # Data protection
+  data_protection:
+    encryption_at_rest: true
+    encryption_in_transit: true
+    key_rotation_days: 90
+    backup_retention_days: 2555  # 7 years for legal compliance
+  
+  # Privacy frameworks
+  privacy:
+    gdpr:
+      enabled: true
+      consent_tracking: true
+      data_portability: true
+      right_to_deletion: true
+    
+    ccpa:
+      enabled: true
+      opt_out_mechanism: true
+      data_sale_disclosure: true
+  
+  # Audit logging
+  audit:
+    enabled: true
+    retention_days: 2555  # 7 years
+    immutable_storage: true
+    fields:
+      - timestamp
+      - user_id
+      - action
+      - resource
+      - ip_address
+      - user_agent
+
+# ========================================================================
+# Backup Configuration
+# ========================================================================
+backup:
+  # Database backups
+  database:
+    enabled: true
+    schedule: "0 2 * * *"  # Daily at 2 AM UTC
+    retention_days: 30
+    compression: true
+    encryption: true
+    storage:
+      type: "s3"
+      bucket: "${BACKUP_S3_BUCKET}"
+      region: "${AWS_REGION:us-east-1}"
+  
+  # Application data backups
+  application:
+    enabled: true
+    schedule: "0 1 * * 0"  # Weekly on Sunday at 1 AM UTC
+    include:
+      - contracts
+      - configurations
+      - logs
+    exclude:
+      - cache
+      - temporary_files
+
+# ========================================================================
+# Multi-Region Configuration
+# ========================================================================
+regions:
+  # Primary region (US East)
+  us_east:
+    enabled: true
+    primary: true
+    database_replicas: 2
+    cdn_enabled: true
+    compliance: ["ccpa", "sox"]
+  
+  # European region
+  eu_west:
+    enabled: true
+    primary: false
+    database_replicas: 1
+    cdn_enabled: true
+    compliance: ["gdpr", "ai_act"]
+    data_residency_required: true
+  
+  # Asia Pacific region
+  ap_southeast:
+    enabled: true
+    primary: false
+    database_replicas: 1
+    cdn_enabled: true
+    compliance: ["pdpa"]
+
+# ========================================================================
+# Disaster Recovery
+# ========================================================================
+disaster_recovery:
+  # RTO/RPO targets
+  recovery_time_objective: 4    # hours
+  recovery_point_objective: 1   # hour
+  
+  # Failover configuration
+  failover:
+    enabled: true
+    automatic: true
+    health_check_interval: 30   # seconds
+    failure_threshold: 3
+    
+  # Cross-region replication
+  replication:
+    enabled: true
+    sync_mode: "async"
+    lag_threshold: 300  # seconds
+
+# ========================================================================
+# Resource Limits
+# ========================================================================
+limits:
+  # Memory limits
+  memory:
+    max_heap_size: "4G"
+    max_cache_size: "1G"
+    gc_threshold: 0.8
+  
+  # CPU limits
+  cpu:
+    max_cores: 8
+    thread_pool_size: 16
+  
+  # Network limits
+  network:
+    max_connections: 1000
+    connection_timeout: 30
+    read_timeout: 60
+    write_timeout: 60
+  
+  # Request limits
+  requests:
+    max_body_size: "10MB"
+    max_file_size: "100MB"
+    max_batch_size: 1000
+
+# ========================================================================
+# Feature Flags
+# ========================================================================
+features:
+  quantum_planning: true
+  blockchain_integration: true
+  multi_language_support: true
+  advanced_analytics: true
+  ai_explanations: true
+  real_time_monitoring: true
+  automated_scaling: true
+  contract_versioning: true
+  audit_trail: true
+  compliance_automation: true
+
+# ========================================================================
+# Integration Configuration
+# ========================================================================
+integrations:
+  # External services
+  services:
+    # Email service
+    email:
+      provider: "sendgrid"
+      api_key: "${SENDGRID_API_KEY}"
+      from_address: "noreply@rlhf-contracts.org"
+    
+    # SMS service
+    sms:
+      provider: "twilio"
+      account_sid: "${TWILIO_ACCOUNT_SID}"
+      auth_token: "${TWILIO_AUTH_TOKEN}"
+    
+    # Analytics
+    analytics:
+      provider: "mixpanel"
+      token: "${MIXPANEL_TOKEN}"
+  
+  # Webhooks
+  webhooks:
+    enabled: true
+    retry_attempts: 3
+    retry_backoff: "exponential"
+    timeout: 30
+    signature_verification: true
+
+# ========================================================================
+# Environment Overrides
+# ========================================================================
+# These can be overridden via environment variables using the pattern:
+# SECTION__SUBSECTION__KEY (double underscores as separators)
+# 
+# Examples:
+# APP__DEBUG=false
+# DATABASE__PRIMARY__HOST=prod-db.example.com
+# REDIS__HOST=cache.example.com
+# SECURITY__JWT__SECRET_KEY=your-secret-key

@@ -52,6 +52,26 @@ def setup_logging(level: str = "INFO", log_file: Optional[str] = None) -> loggin
     return logger
 
 
+def load_config(config_path: str) -> Dict[str, Any]:
+    """
+    Load configuration from file.
+    
+    Args:
+        config_path: Path to configuration file
+        
+    Returns:
+        Configuration dictionary
+    """
+    import yaml
+    
+    with open(config_path, 'r') as f:
+        if config_path.endswith('.json'):
+            import json
+            return json.load(f)
+        else:
+            return yaml.safe_load(f)
+
+
 def create_timestamp() -> float:
     """Create UTC timestamp."""
     return time.time()
