@@ -46,7 +46,63 @@ class ContractService:
         self._contract_registry: Dict[str, RewardContract] = {}
         self._deployment_history: List[Dict[str, Any]] = []
     
-    def create_contract(
+    def create_contract(self, contract_data: Dict[str, Any]) -> str:
+        """
+        Create a new reward contract from dictionary data.
+        
+        Args:
+            contract_data: Contract specification dictionary
+            
+        Returns:
+            Contract ID
+        """
+        # Extract metadata
+        metadata = contract_data.get('metadata', {})
+        name = metadata.get('name', 'Unnamed Contract')
+        version = metadata.get('version', '1.0.0')
+        creator = metadata.get('creator', 'system')
+        
+        # Extract stakeholders
+        stakeholders = {}
+        for name_key, info in contract_data.get('stakeholders', {}).items():
+            stakeholders[name_key] = info.get('weight', 0.0)
+        
+        # Create contract
+        contract = RewardContract(
+            name=name,
+            version=version,
+            stakeholders=stakeholders,
+            creator=creator
+        )
+        
+        # Add constraints if present
+        for constraint_name, constraint_info in contract_data.get('constraints', {}).items():
+            # For demo purposes, use mock constraint function
+            def mock_constraint(state, action):
+                return True  # Always satisfied for demo
+            
+            contract.add_constraint(
+                name=constraint_name,
+                constraint_fn=mock_constraint,
+                description=constraint_info.get('description', ''),
+                severity=constraint_info.get('severity', 1.0),
+                violation_penalty=constraint_info.get('violation_penalty', -1.0)
+            )
+        
+        # Register contract
+        contract_id = self._generate_contract_id(contract)
+        self._contract_registry[contract_id] = contract
+        
+        return contract_id
+    
+    def get_contract_by_name(self, name: str) -> Optional[Dict[str, Any]]:
+        """Get contract by name."""
+        for contract in self._contract_registry.values():
+            if contract.metadata.name == name:
+                return contract.to_dict()
+        return None
+    
+    def create_contract_object(
         self,
         name: str,
         version: str = "1.0.0",
