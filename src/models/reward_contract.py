@@ -149,7 +149,6 @@ class RewardContract:
             return func
         return decorator
     
-    @jit
     def compute_reward(self, state: jnp.ndarray, action: jnp.ndarray) -> float:
         """
         Compute aggregated reward with constraint enforcement.
@@ -192,52 +191,47 @@ class RewardContract:
         if not self.reward_functions:
             raise ValueError("No reward functions defined")
         
+        # Pre-compute stakeholder info for optimization
+        stakeholder_list = list(self.stakeholders.values())
+        stakeholder_names = [s.name for s in stakeholder_list]
+        stakeholder_weights = jnp.array([s.weight for s in stakeholder_list])
+        
         def compiled_fn(state: jnp.ndarray, action: jnp.ndarray) -> float:
-            # Compute individual stakeholder rewards
-            stakeholder_rewards = {}
+            # Vectorized reward computation
+            rewards = []
             
-            for stakeholder_name, stakeholder in self.stakeholders.items():
+            for i, stakeholder_name in enumerate(stakeholder_names):
                 if stakeholder_name in self.reward_functions:
                     reward_fn = self.reward_functions[stakeholder_name]
-                    stakeholder_rewards[stakeholder_name] = reward_fn(state, action)
+                    reward = reward_fn(state, action)
                 elif "default" in self.reward_functions:
                     reward_fn = self.reward_functions["default"]
-                    stakeholder_rewards[stakeholder_name] = reward_fn(state, action)
+                    reward = reward_fn(state, action)
                 else:
-                    stakeholder_rewards[stakeholder_name] = 0.0
+                    reward = 0.0
+                rewards.append(reward)
             
-            # Aggregate rewards according to strategy
+            rewards_array = jnp.array(rewards)
+            
+            # Optimized aggregation
             if self.aggregation_strategy == AggregationStrategy.WEIGHTED_AVERAGE:
-                aggregated_reward = sum(
-                    stakeholder.weight * stakeholder_rewards.get(stakeholder.name, 0.0)
-                    for stakeholder in self.stakeholders.values()
-                )
+                aggregated_reward = jnp.dot(stakeholder_weights, rewards_array)
             elif self.aggregation_strategy == AggregationStrategy.UTILITARIAN:
-                aggregated_reward = sum(stakeholder_rewards.values())
+                aggregated_reward = jnp.sum(rewards_array)
             else:
-                # Default to weighted average
-                aggregated_reward = sum(
-                    stakeholder.weight * stakeholder_rewards.get(stakeholder.name, 0.0)
-                    for stakeholder in self.stakeholders.values()
-                )
+                aggregated_reward = jnp.dot(stakeholder_weights, rewards_array)
             
-            # Check constraints and apply penalties
-            violations = {}
+            # Optimized constraint checking
+            total_penalty = 0.0
             for name, constraint in self.constraints.items():
                 if constraint.enabled:
                     try:
-                        violations[name] = not constraint.constraint_fn(state, action)
+                        if not constraint.constraint_fn(state, action):
+                            total_penalty += constraint.violation_penalty * constraint.severity
                     except:
-                        violations[name] = True
+                        total_penalty += constraint.violation_penalty * constraint.severity
             
-            # Apply violation penalties
-            penalty = 0.0
-            for name, violated in violations.items():
-                if violated and name in self.constraints:
-                    constraint = self.constraints[name]
-                    penalty += constraint.violation_penalty * constraint.severity
-            
-            return aggregated_reward + penalty
+            return aggregated_reward + total_penalty
         
         self._compiled_reward_fn = jit(compiled_fn)
     
