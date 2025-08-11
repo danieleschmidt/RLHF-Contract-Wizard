@@ -1,0 +1,207 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rlhf-contract-api
+  namespace: rlhf-production
+  labels:
+    app: rlhf-contract-api
+    version: v1
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: rlhf-contract-api
+  template:
+    metadata:
+      labels:
+        app: rlhf-contract-api
+        version: v1
+    spec:
+      containers:
+      - name: api
+        image: rlhf-contract-wizard:latest
+        ports:
+        - containerPort: 8000
+          protocol: TCP
+        env:
+        - name: APP_ENV
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: rlhf-secrets
+              key: database-url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: rlhf-secrets
+              key: redis-url
+        - name: LOG_LEVEL
+          value: "info"
+        - name: API_WORKERS
+          value: "4"
+        - name: CORS_ORIGINS
+          valueFrom:
+            configMapKeyRef:
+              name: rlhf-config
+              key: cors-origins
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: logs
+        persistentVolumeClaim:
+          claimName: rlhf-logs-pvc
+      - name: config
+        configMap:
+          name: rlhf-config
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rlhf-contract-api-service
+  namespace: rlhf-production
+  labels:
+    app: rlhf-contract-api
+spec:
+  selector:
+    app: rlhf-contract-api
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rlhf-contract-ingress
+  namespace: rlhf-production
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - api.rlhf-contracts.org
+    secretName: rlhf-contract-tls
+  rules:
+  - host: api.rlhf-contracts.org
+    http:
+      paths:
+      - path: /api/
+        pathType: Prefix
+        backend:
+          service:
+            name: rlhf-contract-api-service
+            port:
+              number: 80
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: rlhf-contract-hpa
+  namespace: rlhf-production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rlhf-contract-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rlhf-config
+  namespace: rlhf-production
+data:
+  cors-origins: "https://rlhf-contracts.org,https://app.rlhf-contracts.org"
+  log-level: "info"
+  api-workers: "4"
+  max-request-size: "10MB"
+  rate-limit: "100"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rlhf-logs-pvc
+  namespace: rlhf-production
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
