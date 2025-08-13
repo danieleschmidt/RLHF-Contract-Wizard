@@ -1,13 +1,13 @@
 {
-  "timestamp": 1754699183.2956204,
+  "timestamp": 1755087718.0918748,
   "overall_status": "QualityGateStatus.WARNING",
-  "overall_score": 0.9650000000000001,
+  "overall_score": 0.945,
   "total_gates": 10,
   "passed_gates": 9,
   "failed_gates": 0,
   "warning_gates": 1,
   "skipped_gates": 0,
-  "execution_time": 4.141470432281494,
+  "execution_time": 6.138845682144165,
   "gate_results": [
     {
       "gate_name": "Test Coverage Validation",
@@ -18,9 +18,9 @@
       "details": {
         "coverage_percent": 90.0,
         "threshold": 85.0,
-        "test_output": "on\": \"_log_with_context\", \"line\": 285, \"thread_id\": 140090898280576, \"process_id\": 2921}\n{\"timestamp\": 1754699181.7326295, \"iso_timestamp\": \"2025-08-09T00:26:21.%fZ\", \"level\": \"INFO\", \"logger\": \"quantum_planner\", \"message\": \"Registered alert: high_memory_usage (severity: warning)\", \"module\": \"logging_config\", \"function\": \"_log_with_context\", \"line\": 285, \"thread_id\": 140090898280576, \"process_id\": 2921}\n{\"timestamp\": 1754699181.7327118, \"iso_timestamp\": \"2025-08-09T00:26:21.%fZ\", \"level\": \"INFO\", \"logger\": \"quantum_planner\", \"message\": \"Registered alert: high_task_failure_rate (severity: warning)\", \"module\": \"logging_config\", \"function\": \"_log_with_context\", \"line\": 285, \"thread_id\": 140090898280576, \"process_id\": 2921}\n\u2713 Multi-module integration\n\u2713 Monitoring integration\n\u2705 Integration tests PASSED\n\n==================================================\nTEST RESULTS: 10/10 tests passed\nExecution time: 1.01 seconds\nModule coverage: 90.0%\n\ud83c\udf89 ALL TESTS PASSED!\n\u2705 Target coverage achieved (85%+)\n"
+        "test_output": "on\": \"_log_with_context\", \"line\": 285, \"thread_id\": 140095457546368, \"process_id\": 2960}\n{\"timestamp\": 1755087715.8386006, \"iso_timestamp\": \"2025-08-13T12:21:55.%fZ\", \"level\": \"INFO\", \"logger\": \"quantum_planner\", \"message\": \"Registered alert: high_memory_usage (severity: warning)\", \"module\": \"logging_config\", \"function\": \"_log_with_context\", \"line\": 285, \"thread_id\": 140095457546368, \"process_id\": 2960}\n{\"timestamp\": 1755087715.8387463, \"iso_timestamp\": \"2025-08-13T12:21:55.%fZ\", \"level\": \"INFO\", \"logger\": \"quantum_planner\", \"message\": \"Registered alert: high_task_failure_rate (severity: warning)\", \"module\": \"logging_config\", \"function\": \"_log_with_context\", \"line\": 285, \"thread_id\": 140095457546368, \"process_id\": 2960}\n\u2713 Multi-module integration\n\u2713 Monitoring integration\n\u2705 Integration tests PASSED\n\n==================================================\nTEST RESULTS: 10/10 tests passed\nExecution time: 1.01 seconds\nModule coverage: 90.0%\n\ud83c\udf89 ALL TESTS PASSED!\n\u2705 Target coverage achieved (85%+)\n"
       },
-      "execution_time": 3.019833564758301,
+      "execution_time": 4.953810214996338,
       "recommendations": [
         "Maintain current test coverage level"
       ]
@@ -32,15 +32,15 @@
       "score": 0.7999999999999999,
       "message": "Code quality score: 0.80/1.00 (1 issues found)",
       "details": {
-        "total_python_files": 43,
-        "total_lines": 17856,
-        "comment_ratio": 0.11088709677419355,
-        "long_functions": 89,
+        "total_python_files": 58,
+        "total_lines": 24430,
+        "comment_ratio": 0.1102742529676627,
+        "long_functions": 107,
         "issues": [
-          "Found 89 functions with >50 lines"
+          "Found 107 functions with >50 lines"
         ]
       },
-      "execution_time": 0.018001079559326172,
+      "execution_time": 0.025779008865356445,
       "recommendations": [
         "Refactor long functions into smaller components"
       ]
@@ -56,7 +56,7 @@
         "critical_vulnerabilities": [],
         "security_score": 1.0
       },
-      "execution_time": 0.01105499267578125,
+      "execution_time": 0.01697850227355957,
       "recommendations": [
         "Security posture is acceptable"
       ]
@@ -65,15 +65,15 @@
       "gate_name": "Performance Benchmarking",
       "status": "QualityGateStatus.PASSED",
       "severity": "QualityGateSeverity.INFO",
-      "score": 1.0,
-      "message": "Performance score: 1.00/1.00 (planning: 0.1ms)",
+      "score": 0.8,
+      "message": "Performance score: 0.80/1.00 (planning: 0.1ms)",
       "details": {
-        "task_creation_time_ms": 88.6082649230957,
-        "planning_time_ms": 0.09608268737792969,
-        "performance_score": 1.0,
+        "task_creation_time_ms": 132.96008110046387,
+        "planning_time_ms": 0.1251697540283203,
+        "performance_score": 0.8,
         "max_response_time_threshold": 1000
       },
-      "execution_time": 0.08878946304321289,
+      "execution_time": 0.1331954002380371,
       "recommendations": [
         "Performance is acceptable"
       ]
@@ -89,7 +89,7 @@
         "compliance_issues": [],
         "min_compliance_threshold": 0.95
       },
-      "execution_time": 7.104873657226562e-05,
+      "execution_time": 0.00012731552124023438,
       "recommendations": [
         "Contract compliance is acceptable"
       ]
@@ -105,7 +105,7 @@
         "vulnerable_dependencies": [],
         "security_score": 1.0
       },
-      "execution_time": 0.0001392364501953125,
+      "execution_time": 0.00021123886108398438,
       "recommendations": [
         "Dependencies appear secure"
       ]
@@ -115,15 +115,15 @@
       "status": "QualityGateStatus.PASSED",
       "severity": "QualityGateSeverity.INFO",
       "score": 1.0,
-      "message": "Resource usage: Memory 417.8MB, CPU 0.5%",
+      "message": "Resource usage: Memory 424.3MB, CPU 1.0%",
       "details": {
-        "memory_usage_mb": 417.83203125,
-        "cpu_usage_percent": 0.5,
+        "memory_usage_mb": 424.31640625,
+        "cpu_usage_percent": 1.0,
         "memory_threshold": 512,
         "cpu_threshold": 80,
         "issues": []
       },
-      "execution_time": 1.00077486038208,
+      "execution_time": 1.0015678405761719,
       "recommendations": [
         "Resource usage is acceptable"
       ]
@@ -139,7 +139,7 @@
         "api_issues": [],
         "checked_interfaces": 5
       },
-      "execution_time": 5.316734313964844e-05,
+      "execution_time": 0.00014400482177734375,
       "recommendations": [
         "API compatibility is maintained"
       ]
@@ -149,15 +149,15 @@
       "status": "QualityGateStatus.PASSED",
       "severity": "QualityGateSeverity.INFO",
       "score": 0.9,
-      "message": "Documentation score: 0.90/1.00 (43/43 files documented)",
+      "message": "Documentation score: 0.90/1.00 (55/58 files documented)",
       "details": {
         "documentation_score": 0.9,
-        "documented_files": 43,
-        "total_files": 43,
-        "documentation_ratio": 1.0,
+        "documented_files": 55,
+        "total_files": 58,
+        "documentation_ratio": 0.9482758620689655,
         "issues": []
       },
-      "execution_time": 0.002390146255493164,
+      "execution_time": 0.006267547607421875,
       "recommendations": [
         "Documentation is adequate"
       ]
@@ -179,7 +179,7 @@
         ],
         "deployment_ready": true
       },
-      "execution_time": 0.00010013580322265625,
+      "execution_time": 0.00019931793212890625,
       "recommendations": [
         "System is production ready"
       ]
@@ -187,16 +187,16 @@
   ],
   "critical_issues": [],
   "recommendations": [
-    "Documentation is adequate",
-    "Maintain current test coverage level",
-    "System is production ready",
-    "Contract compliance is acceptable",
     "Resource usage is acceptable",
-    "Security posture is acceptable",
+    "API compatibility is maintained",
     "Performance is acceptable",
-    "Dependencies appear secure",
+    "Security posture is acceptable",
+    "Maintain current test coverage level",
+    "Contract compliance is acceptable",
     "Refactor long functions into smaller components",
-    "API compatibility is maintained"
+    "Documentation is adequate",
+    "System is production ready",
+    "Dependencies appear secure"
   ],
   "deployment_ready": true
 }

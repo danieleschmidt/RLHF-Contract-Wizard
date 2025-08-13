@@ -60,7 +60,13 @@ extras_require = {
         "structlog>=23.1.0",
         "sentry-sdk>=1.30.0"
     ],
-    "all": dev_requires  # Install everything
+    "all": dev_requires + [
+        "z3-solver>=4.12.0", 
+        "web3>=6.11.0",
+        "eth-account>=0.9.0",
+        "mkdocs>=1.5.0",
+        "prometheus-client>=0.17.0"
+    ]
 }
 
 setup(

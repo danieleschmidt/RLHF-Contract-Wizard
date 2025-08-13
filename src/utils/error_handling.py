@@ -261,7 +261,7 @@ class ErrorHandler:
             'category': error_context.category.value,
             'severity': error_context.severity.value,
             'error_type': error_context.error_type,
-            'message': error_context.message,
+            'error_msg': error_context.message,
             'user_id': error_context.user_id,
             'contract_id': error_context.contract_id,
             'additional_info': error_context.additional_info

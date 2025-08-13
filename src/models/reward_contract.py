@@ -14,6 +14,7 @@ from enum import Enum
 import jax
 import jax.numpy as jnp
 from jax import jit, vmap
+from ..optimization.contract_cache import reward_cache
 
 
 class AggregationStrategy(Enum):
@@ -149,7 +150,7 @@ class RewardContract:
             return func
         return decorator
     
-    def compute_reward(self, state: jnp.ndarray, action: jnp.ndarray) -> float:
+    def compute_reward(self, state: jnp.ndarray, action: jnp.ndarray, use_cache: bool = True) -> float:
         """
         Compute aggregated reward with constraint enforcement.
         
@@ -160,21 +161,115 @@ class RewardContract:
         Returns:
             Final reward value considering all stakeholders and constraints
         """
-        if self._compiled_reward_fn is None:
-            self._compile_reward_function()
-        
-        return self._compiled_reward_fn(state, action)
+        try:
+            # Input validation
+            if state is None or action is None:
+                raise ValueError("State and action cannot be None")
+            
+            if not isinstance(state, jnp.ndarray) or not isinstance(action, jnp.ndarray):
+                raise ValueError("State and action must be JAX arrays")
+            
+            if state.size == 0 or action.size == 0:
+                raise ValueError("State and action cannot be empty")
+            
+            # Check cache first (if enabled)
+            if use_cache:
+                cache_key = self._generate_cache_key(state, action)
+                cached_reward = reward_cache.get(cache_key)
+                if cached_reward is not None:
+                    return cached_reward
+            
+            if self._compiled_reward_fn is None:
+                self._compile_reward_function()
+            
+            reward = self._compiled_reward_fn(state, action)
+            
+            # Ensure reward is finite
+            if not jnp.isfinite(reward):
+                raise ValueError(f"Computed reward is not finite: {reward}")
+            
+            reward_float = float(reward)
+            
+            # Cache result (if enabled)
+            if use_cache:
+                reward_cache.set(
+                    cache_key, 
+                    reward_float,
+                    tags={'contract', self.metadata.name}
+                )
+            
+            return reward_float
+            
+        except Exception as e:
+            # Import error handling utilities
+            from ..utils.error_handling import handle_error, ErrorCategory, ErrorSeverity
+            
+            handle_error(
+                error=e,
+                operation="compute_reward",
+                category=ErrorCategory.COMPUTATION,
+                severity=ErrorSeverity.HIGH,
+                additional_info={
+                    "contract_name": self.metadata.name,
+                    "state_shape": state.shape if hasattr(state, 'shape') else None,
+                    "action_shape": action.shape if hasattr(action, 'shape') else None
+                }
+            )
+            raise
     
     def check_violations(self, state: jnp.ndarray, action: jnp.ndarray) -> Dict[str, bool]:
-        """Check for constraint violations."""
+        """Check for constraint violations with comprehensive error handling."""
         violations = {}
-        for name, constraint in self.constraints.items():
-            if constraint.enabled:
+        
+        try:
+            # Input validation
+            if state is None or action is None:
+                raise ValueError("State and action cannot be None")
+            
+            for name, constraint in self.constraints.items():
+                if not constraint.enabled:
+                    violations[name] = False
+                    continue
+                
                 try:
-                    violations[name] = not constraint.constraint_fn(state, action)
+                    # Execute constraint with timeout protection
+                    result = constraint.constraint_fn(state, action)
+                    violations[name] = not bool(result)
+                    
                 except Exception as e:
-                    # Log error and treat as violation
+                    # Import error handling utilities
+                    from ..utils.error_handling import handle_error, ErrorCategory, ErrorSeverity
+                    
+                    handle_error(
+                        error=e,
+                        operation=f"constraint_check:{name}",
+                        category=ErrorCategory.CONTRACT,
+                        severity=ErrorSeverity.MEDIUM,
+                        additional_info={
+                            "contract_name": self.metadata.name,
+                            "constraint_name": name,
+                            "constraint_description": constraint.description
+                        },
+                        attempt_recovery=False
+                    )
+                    
+                    # Treat constraint check failure as violation for safety
                     violations[name] = True
+                    
+        except Exception as e:
+            from ..utils.error_handling import handle_error, ErrorCategory, ErrorSeverity
+            
+            handle_error(
+                error=e,
+                operation="check_violations",
+                category=ErrorCategory.CONTRACT,
+                severity=ErrorSeverity.HIGH,
+                additional_info={"contract_name": self.metadata.name}
+            )
+            
+            # Return all constraints as violated for safety
+            violations = {name: True for name in self.constraints.keys()}
+            
         return violations
     
     def get_violation_penalty(self, violations: Dict[str, bool]) -> float:
@@ -187,53 +282,94 @@ class RewardContract:
         return total_penalty
     
     def _compile_reward_function(self):
-        """Compile stakeholder preferences into single JAX function."""
-        if not self.reward_functions:
-            raise ValueError("No reward functions defined")
-        
-        # Pre-compute stakeholder info for optimization
-        stakeholder_list = list(self.stakeholders.values())
-        stakeholder_names = [s.name for s in stakeholder_list]
-        stakeholder_weights = jnp.array([s.weight for s in stakeholder_list])
-        
-        def compiled_fn(state: jnp.ndarray, action: jnp.ndarray) -> float:
-            # Vectorized reward computation
-            rewards = []
+        """Compile stakeholder preferences into single JAX function with error handling."""
+        try:
+            if not self.reward_functions:
+                raise ValueError("No reward functions defined")
             
-            for i, stakeholder_name in enumerate(stakeholder_names):
-                if stakeholder_name in self.reward_functions:
-                    reward_fn = self.reward_functions[stakeholder_name]
-                    reward = reward_fn(state, action)
-                elif "default" in self.reward_functions:
-                    reward_fn = self.reward_functions["default"]
-                    reward = reward_fn(state, action)
+            if not self.stakeholders:
+                raise ValueError("No stakeholders defined")
+            
+            # Validate stakeholder weights sum to approximately 1.0
+            total_weight = sum(s.weight for s in self.stakeholders.values())
+            if abs(total_weight - 1.0) > 1e-6:
+                from ..utils.error_handling import handle_error, ErrorCategory, ErrorSeverity
+                handle_error(
+                    error=ValueError(f"Stakeholder weights sum to {total_weight}, expected 1.0"),
+                    operation="compile_reward_function",
+                    category=ErrorCategory.CONTRACT,
+                    severity=ErrorSeverity.MEDIUM,
+                    additional_info={"total_weight": total_weight},
+                    attempt_recovery=False
+                )
+            
+            # Pre-compute stakeholder info for optimization
+            stakeholder_list = list(self.stakeholders.values())
+            stakeholder_names = [s.name for s in stakeholder_list]
+            stakeholder_weights = jnp.array([s.weight for s in stakeholder_list])
+            
+            # Validate weights array
+            if not jnp.all(jnp.isfinite(stakeholder_weights)):
+                raise ValueError("Stakeholder weights contain invalid values")
+            
+            def compiled_fn(state: jnp.ndarray, action: jnp.ndarray) -> float:
+                # Vectorized reward computation
+                rewards = []
+                
+                for i, stakeholder_name in enumerate(stakeholder_names):
+                    if stakeholder_name in self.reward_functions:
+                        reward_fn = self.reward_functions[stakeholder_name]
+                        reward = reward_fn(state, action)
+                    elif "default" in self.reward_functions:
+                        reward_fn = self.reward_functions["default"]
+                        reward = reward_fn(state, action)
+                    else:
+                        reward = 0.0
+                    rewards.append(reward)
+                
+                rewards_array = jnp.array(rewards)
+                
+                # Optimized aggregation
+                if self.aggregation_strategy == AggregationStrategy.WEIGHTED_AVERAGE:
+                    aggregated_reward = jnp.dot(stakeholder_weights, rewards_array)
+                elif self.aggregation_strategy == AggregationStrategy.UTILITARIAN:
+                    aggregated_reward = jnp.sum(rewards_array)
                 else:
-                    reward = 0.0
-                rewards.append(reward)
-            
-            rewards_array = jnp.array(rewards)
-            
-            # Optimized aggregation
-            if self.aggregation_strategy == AggregationStrategy.WEIGHTED_AVERAGE:
-                aggregated_reward = jnp.dot(stakeholder_weights, rewards_array)
-            elif self.aggregation_strategy == AggregationStrategy.UTILITARIAN:
-                aggregated_reward = jnp.sum(rewards_array)
-            else:
-                aggregated_reward = jnp.dot(stakeholder_weights, rewards_array)
-            
-            # Optimized constraint checking
-            total_penalty = 0.0
-            for name, constraint in self.constraints.items():
-                if constraint.enabled:
-                    try:
-                        if not constraint.constraint_fn(state, action):
+                    aggregated_reward = jnp.dot(stakeholder_weights, rewards_array)
+                
+                # Optimized constraint checking
+                total_penalty = 0.0
+                for name, constraint in self.constraints.items():
+                    if constraint.enabled:
+                        try:
+                            if not constraint.constraint_fn(state, action):
+                                total_penalty += constraint.violation_penalty * constraint.severity
+                        except:
                             total_penalty += constraint.violation_penalty * constraint.severity
-                    except:
-                        total_penalty += constraint.violation_penalty * constraint.severity
+                
+                return aggregated_reward + total_penalty
             
-            return aggregated_reward + total_penalty
-        
-        self._compiled_reward_fn = jit(compiled_fn)
+            self._compiled_reward_fn = jit(compiled_fn)
+            
+        except Exception as e:
+            from ..utils.error_handling import handle_error, ErrorCategory, ErrorSeverity
+            
+            handle_error(
+                error=e,
+                operation="compile_reward_function",
+                category=ErrorCategory.CONTRACT,
+                severity=ErrorSeverity.HIGH,
+                additional_info={"contract_name": self.metadata.name}
+            )
+            raise
+    
+    def _generate_cache_key(self, state: jnp.ndarray, action: jnp.ndarray) -> str:
+        """Generate cache key for reward computation."""
+        # Create deterministic key from contract hash and input arrays
+        contract_hash = self.compute_hash()[:16]  # First 16 chars
+        state_hash = hashlib.md5(state.tobytes()).hexdigest()[:8]
+        action_hash = hashlib.md5(action.tobytes()).hexdigest()[:8]
+        return f"reward:{contract_hash}:{state_hash}:{action_hash}"
     
     def _normalize_stakeholder_weights(self):
         """Normalize stakeholder weights to sum to 1.0."""
@@ -252,7 +388,7 @@ class RewardContract:
         self.metadata.updated_at = time.time()
     
     def compute_hash(self) -> str:
-        """Compute deterministic hash of contract specification."""
+        """Compute deterministic hash of contract specification with caching."""
         if self._contract_hash is not None:
             return self._contract_hash
         

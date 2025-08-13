@@ -1,0 +1,220 @@
+# Production Configuration for RLHF-Contract-Wizard
+# Optimized for high-performance, secure production deployment
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  worker_class: "uvicorn.workers.UvicornWorker"
+  max_connections: 1000
+  timeout: 30
+  keepalive: 2
+  max_requests: 10000
+  max_requests_jitter: 1000
+
+database:
+  url: "${DATABASE_URL}"
+  pool_size: 20
+  max_overflow: 30
+  pool_timeout: 30
+  pool_recycle: 3600
+  pool_pre_ping: true
+  echo: false
+  
+  # Connection retry settings
+  retry_attempts: 3
+  retry_delay: 1.0
+  
+  # Query optimization
+  statement_timeout: "30s"
+  lock_timeout: "10s"
+
+cache:
+  redis_url: "${REDIS_URL}"
+  default_ttl: 3600
+  max_connections: 100
+  connection_pool:
+    max_connections: 50
+    retry_on_timeout: true
+    socket_timeout: 5
+    socket_connect_timeout: 5
+
+security:
+  secret_key: "${SECRET_KEY}"
+  jwt_secret: "${JWT_SECRET}"
+  cors_origins:
+    - "https://app.rlhf-contracts.org"
+    - "https://dashboard.rlhf-contracts.org"
+  cors_allow_credentials: true
+  cors_allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  cors_allow_headers: ["*"]
+  
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    requests_per_minute: 100
+    burst_size: 50
+    
+  # Security headers (handled by middleware)
+  security_headers:
+    x_content_type_options: "nosniff"
+    x_frame_options: "DENY" 
+    x_xss_protection: "1; mode=block"
+    strict_transport_security: "max-age=31536000; includeSubDomains"
+    content_security_policy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+
+blockchain:
+  network: "mainnet"
+  rpc_url: "${ETHEREUM_RPC_URL}"
+  private_key_encrypted: "${PRIVATE_KEY_ENCRYPTED}"
+  gas_limit: 500000
+  gas_price_strategy: "fast"
+  confirmation_blocks: 3
+  
+  # Contract addresses (deployed)
+  reward_contract_factory: "0x1234567890123456789012345678901234567890"
+  verification_registry: "0x2345678901234567890123456789012345678901"
+  
+  # Fallback providers
+  fallback_rpc_urls:
+    - "${BACKUP_RPC_URL_1}"
+    - "${BACKUP_RPC_URL_2}"
+
+monitoring:
+  prometheus:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+    
+  health_checks:
+    enabled: true
+    interval: 30
+    timeout: 10
+    endpoints:
+      - "/api/v1/health"
+      - "/api/v1/health/db"
+      - "/api/v1/health/cache"
+      - "/api/v1/health/blockchain"
+  
+  logging:
+    level: "INFO"
+    format: "json"
+    handlers:
+      - "console"
+      - "file"
+    file_config:
+      filename: "/var/log/rlhf/api.log"
+      max_bytes: 104857600  # 100MB
+      backup_count: 10
+  
+  # APM/Error tracking
+  sentry:
+    dsn: "${SENTRY_DSN}"
+    environment: "production"
+    sample_rate: 0.1
+    traces_sample_rate: 0.1
+
+features:
+  # Production feature flags
+  quantum_planner: true
+  advanced_caching: true
+  real_time_verification: true
+  batch_processing: true
+  parallel_execution: true
+  
+  # Experimental features (disabled in prod)
+  multi_chain_support: false
+  experimental_algorithms: false
+  debug_mode: false
+
+performance:
+  # Caching configuration
+  cache_config:
+    reward_cache:
+      max_size: 10000
+      ttl: 3600
+      compression: true
+    verification_cache:
+      max_size: 5000
+      ttl: 7200
+      compression: true
+    contract_cache:
+      max_size: 2000
+      ttl: 86400
+      compression: true
+  
+  # Parallel processing
+  parallel_processing:
+    max_workers: 8
+    queue_size: 10000
+    timeout: 300
+    
+  # Batch processing
+  batch_processing:
+    default_batch_size: 32
+    max_batch_size: 128
+    batch_timeout: 1.0
+    
+  # Circuit breakers
+  circuit_breakers:
+    database:
+      failure_threshold: 5
+      recovery_timeout: 60
+      success_threshold: 3
+    blockchain:
+      failure_threshold: 3
+      recovery_timeout: 120
+      success_threshold: 2
+    cache:
+      failure_threshold: 10
+      recovery_timeout: 30
+      success_threshold: 5
+
+# Resource limits and requests for Kubernetes
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "500m"
+  limits:
+    memory: "2Gi" 
+    cpu: "2000m"
+
+# Auto-scaling configuration
+autoscaling:
+  enabled: true
+  min_replicas: 2
+  max_replicas: 10
+  target_cpu_utilization: 70
+  target_memory_utilization: 80
+  scale_down_delay: "300s"
+  scale_up_delay: "60s"
+
+# Backup and disaster recovery
+backup:
+  database:
+    enabled: true
+    schedule: "0 2 * * *"  # Daily at 2 AM
+    retention_days: 30
+    compression: true
+    encryption: true
+    
+  file_storage:
+    enabled: true
+    schedule: "0 3 * * *"  # Daily at 3 AM
+    retention_days: 7
+
+# Quality gates for production
+quality_gates:
+  enabled: true
+  thresholds:
+    test_coverage: 85.0
+    security_score: 1.0
+    performance_score: 0.8
+    documentation_score: 0.9
+  
+  alerts:
+    enabled: true
+    channels:
+      - "slack"
+      - "email"
+      - "pagerduty"
