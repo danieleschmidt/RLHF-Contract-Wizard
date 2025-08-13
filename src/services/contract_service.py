@@ -157,55 +157,78 @@ class ContractService:
             'valid': True,
             'errors': [],
             'warnings': [],
-            'metrics': {}
+            'metrics': {},
+            'validation_id': f"VAL_{int(time.time())}",
+            'timestamp': time.time()
         }
         
-        # Basic validation
-        if not contract.stakeholders:
-            validation_results['errors'].append("Contract must have at least one stakeholder")
-            validation_results['valid'] = False
+        try:
         
-        if not contract.reward_functions:
-            validation_results['errors'].append("Contract must have at least one reward function")
-            validation_results['valid'] = False
-        
-        # Stakeholder weight validation
-        total_weight = sum(s.weight for s in contract.stakeholders.values())
-        if abs(total_weight - 1.0) > 1e-6:
-            validation_results['warnings'].append(
-                f"Stakeholder weights sum to {total_weight}, expected 1.0"
-            )
-        
-        # Constraint validation
-        for name, constraint in contract.constraints.items():
-            try:
-                # Test constraint function with dummy data
-                import jax.numpy as jnp
-                dummy_state = jnp.zeros(10)
-                dummy_action = jnp.zeros(5)
-                constraint.constraint_fn(dummy_state, dummy_action)
-            except Exception as e:
-                validation_results['errors'].append(
-                    f"Constraint '{name}' failed validation: {str(e)}"
-                )
+            # Basic validation
+            if not contract.stakeholders:
+                validation_results['errors'].append("Contract must have at least one stakeholder")
                 validation_results['valid'] = False
-        
-        # Legal-Blocks validation
-        for stakeholder_name, reward_fn in contract.reward_functions.items():
-            if hasattr(reward_fn, '__legal_blocks__'):
-                blocks_info = LegalBlocks.get_constraints(reward_fn)
-                if blocks_info:
-                    validation_results['metrics'][f'{stakeholder_name}_constraints'] = len(blocks_info['blocks'])
-        
-        # Formal verification if service available
-        if self.verification_service and validation_results['valid']:
-            try:
-                verification_result = self.verification_service.verify_contract(contract)
-                validation_results['verification'] = verification_result
-                if not verification_result.get('all_proofs_valid', True):
-                    validation_results['warnings'].append("Some formal proofs failed")
-            except Exception as e:
-                validation_results['warnings'].append(f"Verification failed: {str(e)}")
+            
+            if not contract.reward_functions:
+                validation_results['errors'].append("Contract must have at least one reward function")
+                validation_results['valid'] = False
+            
+            # Validate contract metadata
+            if not contract.metadata.name or contract.metadata.name.strip() == "":
+                validation_results['errors'].append("Contract name cannot be empty")
+                validation_results['valid'] = False
+            
+            if not contract.metadata.version:
+                validation_results['errors'].append("Contract version cannot be empty")
+                validation_results['valid'] = False
+            
+            # Stakeholder weight validation
+            total_weight = sum(s.weight for s in contract.stakeholders.values())
+            if abs(total_weight - 1.0) > 1e-6:
+                validation_results['warnings'].append(
+                    f"Stakeholder weights sum to {total_weight}, expected 1.0"
+                )
+            
+            # Constraint validation
+            for name, constraint in contract.constraints.items():
+                try:
+                    # Test constraint function with dummy data
+                    import jax.numpy as jnp
+                    dummy_state = jnp.zeros(10)
+                    dummy_action = jnp.zeros(5)
+                    constraint.constraint_fn(dummy_state, dummy_action)
+                except Exception as e:
+                    validation_results['errors'].append(
+                        f"Constraint '{name}' failed validation: {str(e)}"
+                    )
+                    validation_results['valid'] = False
+            
+            # Legal-Blocks validation
+            for stakeholder_name, reward_fn in contract.reward_functions.items():
+                if hasattr(reward_fn, '__legal_blocks__'):
+                    blocks_info = LegalBlocks.get_constraints(reward_fn)
+                    if blocks_info:
+                        validation_results['metrics'][f'{stakeholder_name}_constraints'] = len(blocks_info['blocks'])
+            
+            # Formal verification if service available
+            if self.verification_service and validation_results['valid']:
+                try:
+                    verification_result = self.verification_service.verify_contract(contract)
+                    validation_results['verification'] = verification_result
+                    if not verification_result.get('all_proofs_valid', True):
+                        validation_results['warnings'].append("Some formal proofs failed")
+                except Exception as e:
+                    validation_results['warnings'].append(f"Verification failed: {str(e)}")
+                    
+        except Exception as e:
+            # Handle validation errors gracefully
+            validation_results['valid'] = False
+            validation_results['errors'].append(f"Validation process failed: {str(e)}")
+            
+            # Log error for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Contract validation failed: {e}", exc_info=True)
         
         return validation_results
     
@@ -213,15 +236,17 @@ class ContractService:
         self,
         contract: RewardContract,
         network: str = "testnet",
-        gas_limit: Optional[int] = None
+        gas_limit: Optional[int] = None,
+        timeout_seconds: float = 300.0
     ) -> Dict[str, Any]:
         """
-        Deploy contract to blockchain.
+        Deploy contract to blockchain with comprehensive error handling.
         
         Args:
             contract: Contract to deploy
             network: Target blockchain network
             gas_limit: Gas limit for deployment
+            timeout_seconds: Deployment timeout
             
         Returns:
             Deployment results
