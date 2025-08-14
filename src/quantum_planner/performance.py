@@ -16,8 +16,31 @@ import functools
 import weakref
 import gc
 from collections import defaultdict, deque
-import cachetools
-import psutil
+# Simple caching implementation
+class LRUCache:
+    def __init__(self, maxsize=128):
+        self.maxsize = maxsize
+        self.cache = {}
+    
+    def get(self, key, default=None):
+        return self.cache.get(key, default)
+    
+    def __setitem__(self, key, value):
+        if len(self.cache) >= self.maxsize:
+            # Remove oldest item
+            oldest_key = next(iter(self.cache))
+            del self.cache[oldest_key]
+        self.cache[key] = value
+    
+    def __getitem__(self, key):
+        return self.cache[key]
+    
+    def __len__(self):
+        return len(self.cache)
+try:
+    import psutil
+except ImportError:
+    psutil = None
 import jax
 import jax.numpy as jnp
 from jax import jit, vmap, pmap
@@ -136,15 +159,15 @@ class AdaptiveCache:
     def _create_cache(self, strategy: CacheStrategy) -> Any:
         """Create cache instance based on strategy."""
         if strategy == CacheStrategy.LRU:
-            return cachetools.LRUCache(maxsize=self.max_size)
+            return LRUCache(maxsize=self.max_size)
         elif strategy == CacheStrategy.LFU:
-            return cachetools.LFUCache(maxsize=self.max_size)
+            return LRUCache(maxsize=self.max_size)  # LFU fallback to LRU
         elif strategy == CacheStrategy.TTL:
-            return cachetools.TTLCache(maxsize=self.max_size, ttl=self.ttl_seconds)
+            return LRUCache(maxsize=self.max_size)  # TTL fallback to LRU  
         elif strategy == CacheStrategy.FIFO:
-            return cachetools.FIFOCache(maxsize=self.max_size)
+            return LRUCache(maxsize=self.max_size)  # FIFO fallback to LRU
         else:
-            return cachetools.LRUCache(maxsize=self.max_size)  # Default
+            return LRUCache(maxsize=self.max_size)  # Default
     
     def get(self, key: str) -> Optional[Any]:
         """Get value from cache."""
@@ -528,8 +551,8 @@ class OptimizedQuantumPlanner:
         )
         
         # Specialized caches
-        self.fitness_cache = cachetools.TTLCache(maxsize=cache_size // 2, ttl=1800)
-        self.quantum_state_cache = cachetools.LRUCache(maxsize=cache_size // 4)
+        self.fitness_cache = LRUCache(maxsize=cache_size // 2)
+        self.quantum_state_cache = LRUCache(maxsize=cache_size // 4)
         
     def _setup_compilation(self):
         """Setup JAX compilation and optimization."""
