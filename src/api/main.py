@@ -17,7 +17,8 @@ import uvicorn
 
 from ..database.connection import initialize_connections, close_connections
 from ..utils.helpers import setup_logging
-from .routes import contracts, verification, deployment, health
+from ..global_compliance.i18n import get_i18n_manager, SupportedLanguage
+from .routes import contracts, verification, deployment, health, progressive_quality, performance
 from .middleware import SecurityMiddleware, LoggingMiddleware
 from .dependencies import get_contract_service, get_verification_service, get_blockchain_service
 
@@ -30,7 +31,8 @@ logger = setup_logging()
 async def lifespan(app: FastAPI):
     """Application lifespan management."""
     # Startup
-    logger.info("Starting RLHF-Contract-Wizard API")
+    i18n = get_i18n_manager()
+    logger.info(i18n.translate("system.startup"))
     try:
         await initialize_connections()
         logger.info("Database connections initialized")
@@ -41,7 +43,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    logger.info("Shutting down RLHF-Contract-Wizard API")
+    logger.info(i18n.translate("system.shutdown"))
     try:
         await close_connections()
         logger.info("Database connections closed")
@@ -130,6 +132,8 @@ app.include_router(health.router, prefix="/api/v1", tags=["health"])
 app.include_router(contracts.router, prefix="/api/v1", tags=["contracts"])
 app.include_router(verification.router, prefix="/api/v1", tags=["verification"])
 app.include_router(deployment.router, prefix="/api/v1", tags=["deployment"])
+app.include_router(progressive_quality.router, prefix="/api/v1/progressive-quality", tags=["progressive-quality"])
+app.include_router(performance.router, prefix="/api/v1/performance", tags=["performance"])
 
 
 @app.get("/")
@@ -148,6 +152,7 @@ async def root():
 @app.get("/api/v1/info")
 async def api_info():
     """API information endpoint."""
+    i18n = get_i18n_manager()
     return {
         "api_version": "v1",
         "features": [
@@ -155,7 +160,8 @@ async def api_info():
             "formal_verification", 
             "blockchain_deployment",
             "multi_stakeholder_governance",
-            "legal_blocks_dsl"
+            "legal_blocks_dsl",
+            "global_i18n_support"
         ],
         "supported_networks": [
             "ethereum_mainnet",
@@ -168,6 +174,36 @@ async def api_info():
             "z3",
             "lean4",
             "mock"
+        ],
+        "supported_languages": [lang.value for lang in i18n.get_supported_languages()],
+        "compliance_frameworks": [
+            "gdpr",
+            "ccpa", 
+            "pdpa",
+            "global_privacy_standards"
+        ]
+    }
+
+
+@app.get("/api/v1/i18n/languages")
+async def get_supported_languages():
+    """Get list of supported languages."""
+    i18n = get_i18n_manager()
+    return {
+        "supported_languages": [
+            {
+                "code": lang.value,
+                "name": lang.name.title(),
+                "native_name": {
+                    "en": "English",
+                    "es": "Español", 
+                    "fr": "Français",
+                    "de": "Deutsch",
+                    "ja": "日本語",
+                    "zh": "中文"
+                }.get(lang.value, lang.value.upper())
+            }
+            for lang in i18n.get_supported_languages()
         ]
     }
 
