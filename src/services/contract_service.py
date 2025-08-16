@@ -46,7 +46,17 @@ class ContractService:
         self._contract_registry: Dict[str, RewardContract] = {}
         self._deployment_history: List[Dict[str, Any]] = []
     
-    def create_contract(self, contract_data: Dict[str, Any]) -> str:
+    def create_contract(
+        self,
+        name: str = None,
+        version: str = None,
+        stakeholders: Dict[str, float] = None,
+        creator: str = None,
+        jurisdiction: str = None,
+        regulatory_framework: str = None,
+        aggregation_strategy: str = None,
+        contract_data: Dict[str, Any] = None
+    ) -> str:
         """
         Create a new reward contract from dictionary data.
         
@@ -56,16 +66,27 @@ class ContractService:
         Returns:
             Contract ID
         """
-        # Extract metadata
-        metadata = contract_data.get('metadata', {})
-        name = metadata.get('name', 'Unnamed Contract')
-        version = metadata.get('version', '1.0.0')
-        creator = metadata.get('creator', 'system')
+        # Handle both direct parameters and contract_data dict
+        if contract_data:
+            metadata = contract_data.get('metadata', {})
+            name = name or metadata.get('name', 'Unnamed Contract')
+            version = version or metadata.get('version', '1.0.0')
+            creator = creator or metadata.get('creator', 'system')
+            
+            # Extract stakeholders from contract_data
+            if not stakeholders:
+                stakeholders = {}
+                for name_key, info in contract_data.get('stakeholders', {}).items():
+                    if isinstance(info, dict):
+                        stakeholders[name_key] = info.get('weight', 0.0)
+                    else:
+                        stakeholders[name_key] = float(info)
         
-        # Extract stakeholders
-        stakeholders = {}
-        for name_key, info in contract_data.get('stakeholders', {}).items():
-            stakeholders[name_key] = info.get('weight', 0.0)
+        # Set defaults
+        name = name or 'Unnamed Contract'
+        version = version or '1.0.0'
+        creator = creator or 'system'
+        stakeholders = stakeholders or {'default': 1.0}
         
         # Create contract
         contract = RewardContract(
@@ -76,7 +97,8 @@ class ContractService:
         )
         
         # Add constraints if present
-        for constraint_name, constraint_info in contract_data.get('constraints', {}).items():
+        constraints_data = contract_data.get('constraints', {}) if contract_data else {}
+        for constraint_name, constraint_info in constraints_data.items():
             # For demo purposes, use mock constraint function
             def mock_constraint(state, action):
                 return True  # Always satisfied for demo
