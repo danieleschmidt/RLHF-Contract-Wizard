@@ -1,3 +1,4 @@
+```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -44,6 +45,12 @@ spec:
         env:
         - name: ENV
           value: "production"
+        - name: ENVIRONMENT
+          value: "production"
+        - name: API_HOST
+          value: "0.0.0.0"
+        - name: API_PORT
+          value: "8000"
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
@@ -58,12 +65,22 @@ spec:
           value: "INFO"
         - name: MONITORING_ENABLED
           value: "true"
+        - name: ENABLE_MONITORING
+          value: "true"
         - name: AUTO_SCALING_ENABLED
           value: "true"
         - name: PERFORMANCE_OPTIMIZATION
           value: "aggressive"
         - name: SECURITY_LEVEL
           value: "high"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         resources:
           requests:
             memory: "512Mi"
@@ -81,7 +98,7 @@ spec:
           failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /api/v1/health
+            path: /api/v1/health/ready
             port: 8000
           initialDelaySeconds: 30
           periodSeconds: 10
@@ -101,6 +118,8 @@ spec:
           readOnly: true
         - name: logs-volume
           mountPath: /app/logs
+        - name: tmp
+          mountPath: /tmp
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -115,6 +134,10 @@ spec:
           name: rlhf-config
       - name: logs-volume
         emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -134,7 +157,6 @@ spec:
         labelSelector:
           matchLabels:
             app: rlhf-api
-
 ---
 apiVersion: v1
 kind: Service
@@ -155,7 +177,6 @@ spec:
     name: http
   selector:
     app: rlhf-api
-
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -164,7 +185,6 @@ metadata:
   namespace: rlhf-contracts
   labels:
     app: rlhf-api
-
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -210,3 +230,43 @@ spec:
       port: 53
     - protocol: UDP
       port: 53
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: rlhf-api-hpa
+  namespace: rlhf-contracts
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rlhf-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+```
