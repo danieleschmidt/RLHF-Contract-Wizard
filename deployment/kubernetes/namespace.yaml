@@ -1,3 +1,4 @@
+```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -5,8 +6,38 @@ metadata:
   labels:
     name: rlhf-contracts
     environment: production
+    tier: production
     app.kubernetes.io/name: rlhf-contract-wizard
     app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/component: namespace
     app.kubernetes.io/part-of: rlhf-platform
     app.kubernetes.io/managed-by: kubectl
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: resource-limits
+  namespace: rlhf-contracts
+spec:
+  limits:
+  - default:
+      cpu: "1"
+      memory: "1Gi"
+    defaultRequest:
+      cpu: "100m"
+      memory: "128Mi"
+    type: Container
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-quota
+  namespace: rlhf-contracts
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    persistentvolumeclaims: "4"
+```

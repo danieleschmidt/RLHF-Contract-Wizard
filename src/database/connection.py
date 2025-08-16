@@ -19,10 +19,15 @@ except ImportError:
     HAS_POSTGRES = False
 
 try:
-    import aioredis
+    import redis.asyncio as aioredis
     HAS_REDIS = True
 except ImportError:
-    HAS_REDIS = False
+    try:
+        import aioredis
+        HAS_REDIS = True
+    except ImportError:
+        HAS_REDIS = False
+        aioredis = None
 
 from ..utils.helpers import setup_logging
 
