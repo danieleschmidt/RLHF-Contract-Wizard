@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rlhf-contracts
+  labels:
+    name: rlhf-contracts
+    environment: production
+    app.kubernetes.io/name: rlhf-contract-wizard
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: namespace
+    app.kubernetes.io/part-of: rlhf-platform
+    app.kubernetes.io/managed-by: kubectl

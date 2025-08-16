@@ -1,0 +1,212 @@
+version: '3.8'
+
+services:
+  # Main API Service
+  rlhf-api:
+    image: rlhf-contract-wizard:latest
+    build:
+      context: ../..
+      dockerfile: deployment/production/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+      - DATABASE_URL=postgresql://rlhf_user:${DB_PASSWORD}@postgres:5432/rlhf_contracts
+      - REDIS_URL=redis://redis:6379/0
+      - LOG_LEVEL=INFO
+      - MONITORING_ENABLED=true
+      - AUTO_SCALING_ENABLED=true
+      - PERFORMANCE_OPTIMIZATION=aggressive
+      - SECURITY_LEVEL=high
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rlhf-network
+    restart: unless-stopped
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=rlhf_contracts
+      - POSTGRES_USER=rlhf_user
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - rlhf-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rlhf_user -d rlhf_contracts"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+      - ./redis.conf:/etc/redis/redis.conf
+    networks:
+      - rlhf-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    networks:
+      - rlhf-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - rlhf-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  # Load Balancer
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/static:/var/www/static
+    networks:
+      - rlhf-network
+    restart: unless-stopped
+    depends_on:
+      - rlhf-api
+
+  # Background Workers
+  worker:
+    image: rlhf-contract-wizard:latest
+    command: python -m src.workers.background_worker
+    environment:
+      - ENV=production
+      - DATABASE_URL=postgresql://rlhf_user:${DB_PASSWORD}@postgres:5432/rlhf_contracts
+      - REDIS_URL=redis://redis:6379/0
+      - WORKER_TYPE=contract_processor
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rlhf-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+
+  # Verification Worker
+  verification-worker:
+    image: rlhf-contract-wizard:latest
+    command: python -m src.workers.verification_worker
+    environment:
+      - ENV=production
+      - DATABASE_URL=postgresql://rlhf_user:${DB_PASSWORD}@postgres:5432/rlhf_contracts
+      - REDIS_URL=redis://redis:6379/0
+      - WORKER_TYPE=verification
+      - VERIFICATION_BACKEND=z3
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - rlhf-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  rlhf-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
