@@ -29,11 +29,22 @@ def read_requirements(filename):
 install_requires = read_requirements("requirements.txt")
 
 # Development requirements  
-dev_requires = read_requirements("requirements-dev.txt")
+try:
+    dev_requires = read_requirements("requirements-dev.txt")
+except FileNotFoundError:
+    dev_requires = []
 
 # Optional extras
 extras_require = {
-    "dev": dev_requires,
+    "dev": [
+        "pytest>=7.4.0",
+        "pytest-asyncio>=0.21.0",
+        "pytest-cov>=4.1.0",
+        "black>=23.7.0",
+        "isort>=5.12.0",
+        "flake8>=6.0.0",
+        "mypy>=1.5.0"
+    ],
     "test": [
         "pytest>=7.4.0",
         "pytest-asyncio>=0.21.0", 
@@ -60,7 +71,12 @@ extras_require = {
         "structlog>=23.1.0",
         "sentry-sdk>=1.30.0"
     ],
-    "all": dev_requires + [
+    "all": [
+        "pytest>=7.4.0",
+        "pytest-asyncio>=0.21.0", 
+        "pytest-cov>=4.1.0",
+        "pytest-mock>=3.11.0",
+        "httpx>=0.24.0",
         "z3-solver>=4.12.0", 
         "web3>=6.11.0",
         "eth-account>=0.9.0",

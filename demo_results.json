@@ -1,0 +1,76 @@
+{
+  "reward_contracts": {
+    "contract_hash": "0dd1131a21be259f03a86396f11dfe14808a17f286c3915fb393b1d9259e9785",
+    "computed_reward": -13.192032814025879,
+    "violations": {
+      "no_harmful_content": false,
+      "privacy_protection": false
+    },
+    "stakeholders": 3,
+    "constraints": 2,
+    "contract_metadata": {
+      "name": "SafeAssistant-v1",
+      "version": "1.0.0",
+      "created_at": 1755581216.9835281,
+      "updated_at": 1755581216.9835758,
+      "creator": "system",
+      "jurisdiction": "Global",
+      "regulatory_framework": null
+    }
+  },
+  "quantum_planning": {
+    "optimization_time": 0.3568904399871826,
+    "fitness_score": 0.5533333333333333,
+    "total_tasks": 5,
+    "completed_tasks": 1,
+    "failed_tasks": 0,
+    "success_rate": 0.2,
+    "resource_utilization": {
+      "cpu_cores": 0.25,
+      "memory_gb": 0.25,
+      "gpu_memory_gb": 0.0
+    },
+    "quantum_metrics": {
+      "entanglements": 2,
+      "superposition_tasks": 5,
+      "average_probability": 0.30922251217640845
+    },
+    "converged": true,
+    "quantum_state": {
+      "total_tasks": 5,
+      "state_distribution": {
+        "completed": 1,
+        "superposition": 4
+      },
+      "total_superposition_probability": 1.3960657056707844,
+      "entanglement_connections": 2,
+      "global_phase": 0.0,
+      "active_interferences": 0
+    }
+  },
+  "integration": {
+    "contract_reward": 3.000000238418579,
+    "violations_detected": 0,
+    "compliance_task_ready": true,
+    "integration_successful": true
+  },
+  "benchmarks": {
+    "reward_computation": {
+      "uncached_time_100_runs": 0.1342923641204834,
+      "cached_time_100_runs": 0.002922534942626953,
+      "speedup_factor": 45.950644477076196
+    },
+    "quantum_planning": {
+      "planning_time_10_tasks": 0.4226105213165283,
+      "fitness_achieved": 0.6491295938104449,
+      "convergence_iterations": 2
+    }
+  },
+  "summary": {
+    "total_demo_time": 1.4007067680358887,
+    "components_tested": 4,
+    "contracts_created": 3,
+    "tasks_planned": 5,
+    "all_tests_passed": true
+  }
+}
