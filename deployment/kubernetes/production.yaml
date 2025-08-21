@@ -1,0 +1,331 @@
+# Kubernetes production deployment for RLHF-Contract-Wizard
+# Multi-region, auto-scaling, globally distributed deployment
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rlhf-contracts
+  labels:
+    app.kubernetes.io/name: rlhf-contract-wizard
+    app.kubernetes.io/version: "1.0.0"
+    environment: production
+
+---
+# ConfigMap for application configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rlhf-config
+  namespace: rlhf-contracts
+data:
+  APP_ENV: "production"
+  LOG_LEVEL: "info"
+  API_WORKERS: "4"
+  CACHE_ENABLED: "true"
+  AUTO_SCALING_ENABLED: "true"
+  PROMETHEUS_ENABLED: "true"
+  METRICS_PORT: "9090"
+  SECURITY_HEADERS_ENABLED: "true"
+  RATE_LIMITING_ENABLED: "true"
+  CORS_ORIGINS: "https://rlhf-contracts.org,https://app.rlhf-contracts.org"
+  TRUSTED_HOSTS: "rlhf-contracts.org,*.rlhf-contracts.org"
+
+---
+# Secret for sensitive configuration
+apiVersion: v1
+kind: Secret
+metadata:
+  name: rlhf-secrets
+  namespace: rlhf-contracts
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://user:password@postgres:5432/rlhf_contracts"
+  REDIS_URL: "redis://redis:6379/0"
+  SECRET_KEY: "your-secret-key-here"
+  BLOCKCHAIN_PRIVATE_KEY: "your-blockchain-key-here"
+
+---
+# Deployment for the main application
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rlhf-contract-wizard
+  namespace: rlhf-contracts
+  labels:
+    app: rlhf-contract-wizard
+    tier: application
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: rlhf-contract-wizard
+  template:
+    metadata:
+      labels:
+        app: rlhf-contract-wizard
+        tier: application
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: rlhf-app
+        image: rlhf-contract-wizard:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        env:
+        - name: API_HOST
+          value: "0.0.0.0"
+        - name: API_PORT
+          value: "8000"
+        envFrom:
+        - configMapRef:
+            name: rlhf-config
+        - secretRef:
+            name: rlhf-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        startupProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+        - name: cache
+          mountPath: /app/cache
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: logs
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+
+---
+# Service for the application
+apiVersion: v1
+kind: Service
+metadata:
+  name: rlhf-service
+  namespace: rlhf-contracts
+  labels:
+    app: rlhf-contract-wizard
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
+  selector:
+    app: rlhf-contract-wizard
+
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: rlhf-hpa
+  namespace: rlhf-contracts
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rlhf-contract-wizard
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Pods
+        value: 4
+        periodSeconds: 60
+
+---
+# Ingress for external access
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rlhf-ingress
+  namespace: rlhf-contracts
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://rlhf-contracts.org"
+spec:
+  tls:
+  - hosts:
+    - api.rlhf-contracts.org
+    - app.rlhf-contracts.org
+    secretName: rlhf-tls
+  rules:
+  - host: api.rlhf-contracts.org
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rlhf-service
+            port:
+              number: 80
+  - host: app.rlhf-contracts.org
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: rlhf-service
+            port:
+              number: 80
+
+---
+# NetworkPolicy for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rlhf-network-policy
+  namespace: rlhf-contracts
+spec:
+  podSelector:
+    matchLabels:
+      app: rlhf-contract-wizard
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 5432  # PostgreSQL
+    - protocol: TCP
+      port: 6379  # Redis
+    - protocol: TCP
+      port: 53    # DNS
+    - protocol: UDP
+      port: 53    # DNS
+    - protocol: TCP
+      port: 443   # HTTPS
+
+---
+# PodDisruptionBudget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: rlhf-pdb
+  namespace: rlhf-contracts
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: rlhf-contract-wizard
+
+---
+# ServiceMonitor for Prometheus monitoring
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rlhf-metrics
+  namespace: rlhf-contracts
+  labels:
+    app: rlhf-contract-wizard
+spec:
+  selector:
+    matchLabels:
+      app: rlhf-contract-wizard
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+    honorLabels: true

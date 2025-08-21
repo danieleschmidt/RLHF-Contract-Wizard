@@ -1,323 +1,114 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: prometheus-config
-  namespace: rlhf-contracts
-  labels:
-    app: prometheus
-data:
-  prometheus.yml: |
-    global:
-      scrape_interval: 15s
-      evaluation_interval: 15s
-      external_labels:
-        cluster: 'rlhf-contracts-prod'
-        
-    rule_files:
-      - "rules/*.yml"
-      
-    scrape_configs:
-    # RLHF Contract Wizard metrics
-    - job_name: 'rlhf-contract-wizard'
-      static_configs:
-      - targets: ['rlhf-contract-wizard-service:9090']
-      scrape_interval: 10s
-      metrics_path: '/metrics'
-      
-    # Kubernetes API server
-    - job_name: 'kubernetes-apiservers'
-      kubernetes_sd_configs:
-      - role: endpoints
-      scheme: https
-      tls_config:
-        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-      relabel_configs:
-      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
-        action: keep
-        regex: default;kubernetes;https
-        
-    # Kubernetes nodes
-    - job_name: 'kubernetes-nodes'
-      kubernetes_sd_configs:
-      - role: node
-      scheme: https
-      tls_config:
-        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
-      relabel_configs:
-      - action: labelmap
-        regex: __meta_kubernetes_node_label_(.+)
-        
-    # Kubernetes pods
-    - job_name: 'kubernetes-pods'
-      kubernetes_sd_configs:
-      - role: pod
-      relabel_configs:
-      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-        action: keep
-        regex: true
-      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-        action: replace
-        target_label: __metrics_path__
-        regex: (.+)
-      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
-        action: replace
-        regex: ([^:]+)(?::\d+)?;(\d+)
-        replacement: $1:$2
-        target_label: __address__
-      - action: labelmap
-        regex: __meta_kubernetes_pod_label_(.+)
-      - source_labels: [__meta_kubernetes_namespace]
-        action: replace
-        target_label: kubernetes_namespace
-      - source_labels: [__meta_kubernetes_pod_name]
-        action: replace
-        target_label: kubernetes_pod_name
-        
-    alerting:
-      alertmanagers:
-      - static_configs:
-        - targets: ['alertmanager:9093']
-          
-  rules.yml: |
-    groups:
-    - name: rlhf-contract-wizard-alerts
-      rules:
-      
-      # High error rate
-      - alert: HighErrorRate
-        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High error rate detected"
-          description: "Error rate is {{ $value }} for {{ $labels.instance }}"
-          
-      # High response time
-      - alert: HighResponseTime
-        expr: histogram_quantile(0.95, http_request_duration_seconds_bucket) > 2
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High response time detected"
-          description: "95th percentile response time is {{ $value }}s"
-          
-      # Memory usage high
-      - alert: HighMemoryUsage
-        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 90
-        for: 3m
-        labels:
-          severity: critical
-        annotations:
-          summary: "High memory usage"
-          description: "Memory usage is above 90% for {{ $labels.pod }}"
-          
-      # CPU usage high  
-      - alert: HighCPUUsage
-        expr: rate(container_cpu_usage_seconds_total[5m]) * 100 > 80
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High CPU usage"
-          description: "CPU usage is above 80% for {{ $labels.pod }}"
-          
-      # Contract verification failures
-      - alert: VerificationFailures
-        expr: increase(contract_verification_failures_total[10m]) > 5
-        for: 0m
-        labels:
-          severity: critical
-        annotations:
-          summary: "High contract verification failure rate"
-          description: "{{ $value }} verification failures in the last 10 minutes"
-          
-      # Blockchain connectivity issues
-      - alert: BlockchainConnectivityIssue
-        expr: blockchain_connection_status == 0
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Blockchain connectivity issue"
-          description: "Cannot connect to blockchain network {{ $labels.network }}"
-          
-      # Database connection issues
-      - alert: DatabaseConnectionIssue
-        expr: database_connection_pool_active / database_connection_pool_max > 0.9
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Database connection pool nearly exhausted"
-          description: "Database connection pool is {{ $value }}% full"
-          
-      # Pod restart rate
-      - alert: HighPodRestartRate
-        expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
-        for: 0m
-        labels:
-          severity: warning
-        annotations:
-          summary: "High pod restart rate"
-          description: "Pod {{ $labels.pod }} has restarted {{ $value }} times in 15 minutes"
-          
-      # Cache hit rate low
-      - alert: LowCacheHitRate
-        expr: cache_hit_rate < 0.5
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Low cache hit rate"
-          description: "Cache hit rate is {{ $value }} which may impact performance"
-          
-      # Contract compliance violations
-      - alert: ComplianceViolations
-        expr: increase(compliance_violations_total[5m]) > 0
-        for: 0m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Compliance violations detected"
-          description: "{{ $value }} compliance violations in the last 5 minutes"
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: prometheus
-  namespace: rlhf-contracts
-  labels:
-    app: prometheus
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: prometheus
-  template:
-    metadata:
-      labels:
-        app: prometheus
-    spec:
-      serviceAccountName: prometheus
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65534
-        fsGroup: 65534
-      containers:
-      - name: prometheus
-        image: prom/prometheus:v2.40.0
-        args:
-        - '--config.file=/etc/prometheus/prometheus.yml'
-        - '--storage.tsdb.path=/prometheus/'
-        - '--web.console.libraries=/etc/prometheus/console_libraries'
-        - '--web.console.templates=/etc/prometheus/consoles'
-        - '--storage.tsdb.retention.time=30d'
-        - '--web.enable-lifecycle'
-        - '--web.enable-admin-api'
-        ports:
-        - containerPort: 9090
-          name: prometheus
-        volumeMounts:
-        - name: config-volume
-          mountPath: /etc/prometheus/
-        - name: storage-volume
-          mountPath: /prometheus/
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "200m"
-          limits:
-            memory: "2Gi"
-            cpu: "1000m"
-        livenessProbe:
-          httpGet:
-            path: /-/healthy
-            port: 9090
-          initialDelaySeconds: 30
-          periodSeconds: 15
-        readinessProbe:
-          httpGet:
-            path: /-/ready
-            port: 9090
-          initialDelaySeconds: 5
-          periodSeconds: 5
-      volumes:
-      - name: config-volume
-        configMap:
-          name: prometheus-config
-      - name: storage-volume
-        persistentVolumeClaim:
-          claimName: prometheus-storage
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: prometheus
-  namespace: rlhf-contracts
-  labels:
-    app: prometheus
-spec:
-  selector:
-    app: prometheus
-  ports:
-  - port: 9090
-    targetPort: 9090
-    name: prometheus
-  type: ClusterIP
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: prometheus
-  namespace: rlhf-contracts
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: prometheus
-rules:
-- apiGroups: [""]
-  resources:
-  - nodes
-  - nodes/proxy
-  - services
-  - endpoints
-  - pods
-  verbs: ["get", "list", "watch"]
-- apiGroups:
-  - extensions
-  resources:
-  - ingresses
-  verbs: ["get", "list", "watch"]
-- nonResourceURLs: ["/metrics"]
-  verbs: ["get"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: prometheus
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: prometheus
-subjects:
-- kind: ServiceAccount
-  name: prometheus
-  namespace: rlhf-contracts
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: prometheus-storage
-  namespace: rlhf-contracts
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 50Gi
-  storageClassName: gp2
+# Prometheus configuration for RLHF-Contract-Wizard monitoring
+# Comprehensive monitoring with alerting and global metrics collection
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'rlhf-contract-wizard'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Load alerting rules
+rule_files:
+  - "rlhf_alerts.yml"
+  - "system_alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # RLHF Contract Wizard application metrics
+  - job_name: 'rlhf-app'
+    static_configs:
+      - targets: ['rlhf-service:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scheme: http
+
+  # Kubernetes cluster metrics
+  - job_name: 'kubernetes-apiservers'
+    kubernetes_sd_configs:
+    - role: endpoints
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+    - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+      action: keep
+      regex: default;kubernetes;https
+
+  # Kubernetes node metrics
+  - job_name: 'kubernetes-nodes'
+    kubernetes_sd_configs:
+    - role: node
+    scheme: https
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    relabel_configs:
+    - action: labelmap
+      regex: __meta_kubernetes_node_label_(.+)
+    - target_label: __address__
+      replacement: kubernetes.default.svc:443
+    - source_labels: [__meta_kubernetes_node_name]
+      regex: (.+)
+      target_label: __metrics_path__
+      replacement: /api/v1/nodes/${1}/proxy/metrics
+
+  # Kubernetes pod metrics
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+    - role: pod
+    relabel_configs:
+    - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+      action: keep
+      regex: true
+    - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+      action: replace
+      target_label: __metrics_path__
+      regex: (.+)
+    - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+      action: replace
+      regex: ([^:]+)(?::\d+)?;(\d+)
+      replacement: $1:$2
+      target_label: __address__
+    - action: labelmap
+      regex: __meta_kubernetes_pod_label_(.+)
+    - source_labels: [__meta_kubernetes_namespace]
+      action: replace
+      target_label: kubernetes_namespace
+    - source_labels: [__meta_kubernetes_pod_name]
+      action: replace
+      target_label: kubernetes_pod_name
+
+  # PostgreSQL metrics (if enabled)
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 60s
+
+  # Redis metrics (if enabled)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 60s
+
+# Remote write configuration for long-term storage
+remote_write:
+  - url: "https://prometheus-remote-write.monitoring.svc.cluster.local/write"
+    write_relabel_configs:
+    - source_labels: [__name__]
+      regex: 'up|rlhf_.*|http_.*|container_.*'
+      action: keep
+
+# Storage configuration
+storage:
+  tsdb:
+    retention.time: 15d
+    retention.size: 50GB
