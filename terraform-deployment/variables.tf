@@ -1,0 +1,2 @@
+# Terraform variables
+# Generated automatically
