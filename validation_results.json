@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-08-26T16:15:26.902045",
+  "execution_time": 0.6087319850921631,
+  "total_tests": 6,
+  "passed_tests": 3,
+  "pass_rate": 0.5,
+  "status": "FAIL",
+  "test_details": [
+    {
+      "test": "test_imports",
+      "passed": false
+    },
+    {
+      "test": "test_contract_functionality",
+      "passed": false
+    },
+    {
+      "test": "test_file_structure",
+      "passed": true
+    },
+    {
+      "test": "test_module_structure",
+      "passed": false
+    },
+    {
+      "test": "test_configuration_files",
+      "passed": true
+    },
+    {
+      "test": "test_code_quality",
+      "passed": true
+    }
+  ]
+}
