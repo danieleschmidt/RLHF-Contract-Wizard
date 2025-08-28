@@ -150,13 +150,15 @@ class RewardContract:
             return func
         return decorator
     
-    def compute_reward(self, state: jnp.ndarray, action: jnp.ndarray, use_cache: bool = True) -> float:
+    def compute_reward(self, state: jnp.ndarray, action: jnp.ndarray, use_cache: bool = True, context: Optional[Dict[str, Any]] = None) -> float:
         """
-        Compute aggregated reward with constraint enforcement.
+        Compute aggregated reward with constraint enforcement and context awareness.
         
         Args:
             state: Current environment state
             action: Proposed action
+            use_cache: Enable caching for performance optimization
+            context: Additional context for reward computation (global-first features)
             
         Returns:
             Final reward value considering all stakeholders and constraints
