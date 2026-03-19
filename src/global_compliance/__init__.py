@@ -1,1 +1,0 @@
-# Global compliance and internationalization features
